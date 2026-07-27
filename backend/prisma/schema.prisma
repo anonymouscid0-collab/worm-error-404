@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  name          String?
+  role          String   @default("USER")
+  plan          String   @default("FREE")
+  messagesUsed  Int      @default(0)
+  freeLimit     Int      @default(15)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  conversations Conversation[]
+  premiumKey    PremiumKeyRedemption?
+  subscription  Subscription?
+
+  @@map("users")
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  userId    String
+  title     String    @default("Nouvelle conversation")
+  theme     String    @default("dark")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@index([userId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String     @id @default(uuid())
+  conversationId String
+  sender         String
+  content        String
+  attachments    Attachment[]
+  createdAt      DateTime   @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  messageId String
+  fileName  String
+  fileType  String
+  fileUrl   String
+  createdAt DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("attachments")
+}
+
+model PremiumKey {
+  id         String    @id @default(uuid())
+  keyHash    String    @unique
+  isUsed     Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  usedAt     DateTime?
+
+  redemption PremiumKeyRedemption?
+
+  @@map("premium_keys")
+}
+
+model PremiumKeyRedemption {
+  id           String     @id @default(uuid())
+  userId       String     @unique
+  premiumKeyId String     @unique
+  redeemedAt   DateTime   @default(now())
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  premiumKey   PremiumKey @relation(fields: [premiumKeyId], references: [id], onDelete: Cascade)
+
+  @@map("premium_key_redemptions")
+}
+
+model Subscription {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  plan      String    @default("PRO")
+  status    String    @default("active")
+  startedAt DateTime  @default(now())
+  endsAt    DateTime?
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model SiteSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  provider  String
+  label     String
+  keyValue  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("api_keys")
+}

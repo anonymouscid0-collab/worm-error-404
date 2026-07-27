@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+html, body {
+  background-color: #F8FAFC;
+  color: #0F172A;
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+::selection {
+  background: #2F6BFF;
+  color: #FFFFFF;
+}
+
+:focus-visible {
+  outline: 2px solid #2F6BFF;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #94A3B8;
+}
