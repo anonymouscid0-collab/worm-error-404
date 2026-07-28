@@ -1,18 +1,20 @@
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 import { env } from "../config/env";
 
 export interface JwtPayload {
   userId: string;
-  role: "USER" | "ADMIN";
+  role: string;
 }
 
 export function signAccessToken(payload: JwtPayload): string {
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn });
+  return jwt.sign(payload, env.jwtSecret, {
+    expiresIn: env.jwtExpiresIn as SignOptions["expiresIn"],
+  });
 }
 
 export function signRefreshToken(payload: JwtPayload): string {
   return jwt.sign(payload, env.jwtRefreshSecret, {
-    expiresIn: env.jwtRefreshExpiresIn,
+    expiresIn: env.jwtRefreshExpiresIn as SignOptions["expiresIn"],
   });
 }
 

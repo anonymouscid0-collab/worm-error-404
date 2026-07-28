@@ -49,7 +49,7 @@ router.post(
   "/messages",
   requireAuth,
   enforceMessageLimit,
-  upload.array("attachments", 5),
+  upload.array("attachments", 5) as unknown as import("express").RequestHandler,
   sendMessage
 );
 
