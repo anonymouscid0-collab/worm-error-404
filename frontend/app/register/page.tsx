@@ -23,7 +23,7 @@ export default function RegisterPage() {
       localStorage.setItem("accessToken", res.data.accessToken);
       router.push("/chat");
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? "Impossible de créer le compte.");
+      const errMsg = err?.response?.data?.error ?? err?.message ?? "Erreur réseau - vérifiez votre connexion"; setError(errMsg);
     } finally {
       setLoading(false);
     }
