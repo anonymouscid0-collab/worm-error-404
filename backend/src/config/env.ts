@@ -26,6 +26,7 @@ export const env = {
   aiApiKey: process.env.AI_API_KEY ?? "",
   aiApiUrl: process.env.AI_API_URL ?? "",
   aiSystemPrompt: process.env.AI_SYSTEM_PROMPT ?? "",
+  aiModel: process.env.AI_MODEL ?? "claude-4.6-sonnet",
 
   uploadDir: process.env.UPLOAD_DIR ?? "./uploads",
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB ?? "25", 10),
