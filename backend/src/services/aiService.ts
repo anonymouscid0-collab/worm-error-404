@@ -1,5 +1,5 @@
 import { env } from "../config/env";
-import * as https from "https";
+import { prisma } from "../config/prisma";
 
 export interface AiChatMessage {
   role: "user" | "assistant" | "system";
@@ -18,38 +18,37 @@ export interface AiResponse {
   downloadFileName?: string;
 }
 
-// 8 clés fallback - si l'une échoue, on passe à la suivante automatiquement
-const API_KEYS = [
-  { key: "dgpt_live_8c2e687a490b6e919880dca53861043c903eb55b8f1f1652", model: "claude-4.6-sonnet" },
-  { key: "dgpt_live_f7f247f1d77eb15c135bb94280b8fa3cc3337a4d0685a465", model: "claude-4.5-sonnet" },
-  { key: "dgpt_live_69945758830f51507125fab57da3bd998101f465d383ca24", model: "ministral-14b" },
-  { key: "dgpt_live_e1bb34c09d9adbea0f8dc4fb3d29a91dc3c05df88a4687a5", model: "deepseek-v4-flash" },
-  { key: "dgpt_live_099a9f438b2722932d040af6cf651a268744e23f25389c9b", model: "qwen-3-235b" },
-  { key: "dgpt_live_7ffc4e077ebfef442a308237e1a6b5b5852ff16666ef1ee3", model: "grok-4.1-fast" },
-  { key: "dgpt_live_0c11371555c59125118a460e67d081b1e24ac17f0c88cfdb", model: "minimax-m3" },
-  { key: "dgpt_live_5bf100ca120acdf1ad913d3b91866f74e532323d1f0478f8", model: "deepseek-v4-pro" },
-];
+interface AiConfig {
+  apiKey: string;
+  apiUrl: string;
+  systemPrompt: string;
+}
+
+export async function getAiConfig(): Promise<AiConfig> {
+  const [activeKey, promptSetting, urlSetting] = await Promise.all([
+    prisma.apiKey.findFirst({ where: { isActive: true }, orderBy: { createdAt: "desc" } }),
+    prisma.siteSetting.findUnique({ where: { key: "ai_system_prompt" } }),
+    prisma.siteSetting.findUnique({ where: { key: "ai_api_url" } }),
+  ]);
+
+  return {
+    apiKey: activeKey?.keyValue || env.aiApiKey,
+    apiUrl: urlSetting?.value || env.aiApiUrl,
+    systemPrompt: promptSetting?.value || env.aiSystemPrompt,
+  };
+}
 
 export async function generateAiResponse(
   history: AiChatMessage[],
   attachments: AiAttachmentInput[] = []
 ): Promise<AiResponse> {
-  let lastError = "";
-  
-  // Essaie chaque clé jusqu'à ce que l'une fonctionne
-  for (const apiKey of API_KEYS) {
-    try {
-      return await callDarkGpt(history, attachments, apiKey.key, apiKey.model);
-    } catch (err: any) {
-      lastError = err.message || String(err);
-      console.error(`[IA Fallback] ${apiKey.model} failed:`, lastError);
-      continue; // Passe à la clé suivante
-    }
+  const config = await getAiConfig();
+
+  if (!config.apiKey || !config.apiUrl) {
+    return stubResponse(history, attachments);
   }
-  
-  // Si toutes les clés échouent
-  console.error("[IA Fallback] Toutes les clés ont échoué");
-  return stubResponse(history, attachments);
+
+  return callAiProvider(history, attachments, config);
 }
 
 function stubResponse(
@@ -58,69 +57,58 @@ function stubResponse(
 ): AiResponse {
   const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
   const text = (lastUserMessage?.content ?? "").trim();
+
   const attachmentLine =
     attachments.length > 0
-      ? `\\n\\nJ'ai bien reçu ${attachments.length === 1 ? "ton fichier" : `tes ${attachments.length} fichiers`}.`
+      ? `\n\nJ'ai bien reçu ${attachments.length === 1 ? "ton fichier" : `tes ${attachments.length} fichiers`} - une fois l'IA branchée, je pourrai les analyser directement.`
       : "";
+
   return {
     content:
       `Je vois ce que tu me demandes : « ${text} ». ` +
-      `Pour l'instant je réponds en mode démo (les clés API sont temporairement indisponibles), ` +
-      `mais dès que la connexion sera rétablie, je répondrai avec du code fonctionnel et des explications détaillées.` +
+      `Pour l'instant je réponds encore en mode démo (aucun modèle d'IA n'est branché sur ce compte), ` +
+      `donc je ne peux pas encore te générer le vrai code ou la vraie correction. Une fois CID aura ajouté la clé API et le prompt système, ` +
+      `je répondrai avec des projets complets, du code fonctionnel et des explications détaillées, comme un vrai développeur senior le ferait.` +
       attachmentLine,
   };
 }
 
-function httpRequest(
-  url: string,
-  options: https.RequestOptions,
-  postData?: string
-): Promise<{ statusCode: number; body: string }> {
-  return new Promise((resolve, reject) => {
-    const req = https.request(url, options, (res) => {
-      let data = "";
-      res.on("data", (chunk) => { data += chunk; });
-      res.on("end", () => { resolve({ statusCode: res.statusCode || 0, body: data }); });
-    });
-    req.on("error", (err) => reject(err));
-    if (postData) req.write(postData);
-    req.end();
-  });
-}
-
-async function callDarkGpt(
+async function callAiProvider(
   history: AiChatMessage[],
   _attachments: AiAttachmentInput[],
-  apiKey: string,
-  model: string
+  config: AiConfig
 ): Promise<AiResponse> {
-  const url = "https://darkgpt.chat/v1/chat/completions";
-  
-  const messages = env.aiSystemPrompt
-    ? [{ role: "system", content: env.aiSystemPrompt }, ...history]
+  const messages: AiChatMessage[] = config.systemPrompt
+    ? [{ role: "system", content: config.systemPrompt }, ...history]
     : history;
 
-  const postData = JSON.stringify({
-    model,
-    messages,
-    temperature: 0.7,
-    max_tokens: 2048,
-  });
+  try {
+    const response = await fetch(config.apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({ messages }),
+    });
 
-  const { statusCode, body } = await httpRequest(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Length": Buffer.byteLength(postData),
-    },
-  }, postData);
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      return {
+        content: `Erreur de l'API IA (${response.status}) : ${errorText.slice(0, 300) || "réponse invalide"}`,
+      };
+    }
 
-  if (statusCode !== 200) {
-    throw new Error(`API ${statusCode}: ${body.slice(0, 200)}`);
+    const data: any = await response.json();
+    const content =
+      data?.choices?.[0]?.message?.content ??
+      data?.content ??
+      JSON.stringify(data);
+
+    return { content };
+  } catch (err) {
+    return {
+      content: `Impossible de contacter l'API IA : ${(err as Error).message}`,
+    };
   }
-
-  const data = JSON.parse(body);
-  const text = data.choices?.[0]?.message?.content ?? "Pas de réponse.";
-  return { content: text };
 }

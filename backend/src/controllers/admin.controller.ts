@@ -4,6 +4,18 @@ import { prisma } from "../config/prisma";
 import { AuthRequest } from "../middleware/auth";
 import { generateRawKey, hashKey } from "../utils/premiumKey";
 
+import { generateAiResponse } from "../services/aiService";
+
+// ---------- Test IA ----------
+export async function testAi(req: AuthRequest, res: Response) {
+  const schema = z.object({ message: z.string().min(1).default("Dis bonjour et présente-toi en une phrase.") });
+  const parsed = schema.safeParse(req.body);
+  const message = parsed.success ? parsed.data.message : "Dis bonjour et présente-toi en une phrase.";
+
+  const result = await generateAiResponse([{ role: "user", content: message }]);
+  return res.json({ response: result.content });
+}
+
 // ---------- Utilisateurs ----------
 export async function listUsers(_req: AuthRequest, res: Response) {
   const users = await prisma.user.findMany({
