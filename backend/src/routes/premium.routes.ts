@@ -1,9 +1,14 @@
-import { Router } from "express";
-import { requireAuth } from "../middleware/auth";
-import { activatePremiumKey } from "../controllers/premium.controller";
+import { Router, Request, Response } from 'express';
+import { verifyApiKey } from '../middleware/auth';
 
 const router = Router();
 
-router.post("/activate", requireAuth, activatePremiumKey);
+router.post('/execute', verifyApiKey, (req: Request, res: Response) => {
+  res.json({
+    status: 'success',
+    message: 'Accès aux fonctions Premium autorisé.',
+    user: (req as any).userApi
+  });
+});
 
 export default router;

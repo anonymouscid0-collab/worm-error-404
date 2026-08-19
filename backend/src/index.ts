@@ -1,57 +1,37 @@
-import express from "express";
-import http from "http";
-import cors from "cors";
-import helmet from "helmet";
-import morgan from "morgan";
-import cookieParser from "cookie-parser";
-import path from "path";
-import fs from "fs";
-import rateLimit from "express-rate-limit";
-import { Server } from "socket.io";
+import dotenv from 'dotenv';
+dotenv.config();
 
-import { env } from "./config/env";
-import authRoutes from "./routes/auth.routes";
-import chatRoutes from "./routes/chat.routes";
-import premiumRoutes from "./routes/premium.routes";
-import userRoutes from "./routes/user.routes";
-import { registerChatSocket } from "./socket/chatSocket";
+import express from 'express';
+import cors from 'cors';
 
-fs.mkdirSync(env.uploadDir, { recursive: true });
+const WormTelegramBotV3 = require('./services/telegramBotV3');
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: env.frontendUrl, credentials: true },
+const PORT = process.env.PORT || 4000;
+
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+
+// Initialisation du Bot Telegram
+if (process.env.TELEGRAM_BOT_TOKEN) {
+  try {
+    const telegramBot = new WormTelegramBotV3(process.env.TELEGRAM_BOT_TOKEN);
+    telegramBot.start();
+    console.log('🤖 Bot Telegram v3 initialise et ecoute les messages!');
+  } catch (err: any) {
+    console.error('⚠️ Erreur lors du demarrage du bot Telegram:', err.message);
+  }
+} else {
+  console.warn('⚠️ TELEGRAM_BOT_TOKEN non defini dans le fichier .env');
+}
+
+app.get('/', (req, res) => {
+  res.json({
+    status: 'online',
+    message: 'WORM ERROR 404 API Running'
+  });
 });
 
-app.use(helmet({ crossOriginResourcePolicy: false }));
-app.use(cors({ origin: env.frontendUrl, credentials: true }));
-app.use(cookieParser());
-app.use(express.json({ limit: "5mb" }));
-app.use(morgan(env.nodeEnv === "development" ? "dev" : "combined"));
-app.use("/uploads", express.static(path.resolve(env.uploadDir)));
-
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 300,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use("/api", apiLimiter);
-
-app.get("/health", (_req, res) => res.json({ status: "ok", service: "worm-error-404-api" }));
-
-app.use("/api/auth", authRoutes);
-app.use("/api/chat", chatRoutes);
-app.use("/api/premium", premiumRoutes);
-app.use("/api/user", userRoutes);
-
-app.use((_req, res) => {
-  res.status(404).json({ error: "Route introuvable (404)." });
-});
-
-registerChatSocket(io);
-
-server.listen(env.port, () => {
-  console.log(`WORM ERROR // 404 API listening on port ${env.port} [${env.nodeEnv}]`);
+app.listen(PORT, () => {
+  console.log(`⚡ WORM ERROR 404 API en ligne sur le port ${PORT}`);
 });

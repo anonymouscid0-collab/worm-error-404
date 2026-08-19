@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Worm Error 404 v3 - IA Full-Stack Autonome</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --bg: #0f0f23;
+      --surface: #1a1a2e;
+      --surface-light: #252542;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --border: #2d2d44;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      padding: 3rem 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+
+    .logo {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, var(--primary), #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+    }
+
+    .card h2 {
+      color: var(--primary);
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+    }
+
+    .chat-container {
+      height: 400px;
+      overflow-y: auto;
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+    }
+
+    .message {
+      margin-bottom: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      max-width: 85%;
+    }
+
+    .message.user {
+      background: var(--primary);
+      margin-left: auto;
+      color: white;
+    }
+
+    .message.assistant {
+      background: var(--surface-light);
+      border: 1px solid var(--border);
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    input, textarea, select {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--primary);
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: var(--primary-dark);
+    }
+
+    .dev-section {
+      margin-top: 2rem;
+    }
+
+    .api-key-input {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0;
+    }
+
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .feature-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature h3 {
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .feature p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .status-badge.online {
+      background: rgba(34, 197, 94, 0.2);
+      color: var(--success);
+    }
+
+    .thinking {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    code {
+      background: var(--bg);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9em;
+    }
+
+    pre {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 12px;
+      overflow-x: auto;
+      margin: 0.5rem 0;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+
+    .tab {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .tab:hover {
+      background: var(--surface-light);
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">🐛</div>
+      <h1>Worm Error 404 v3</h1>
+      <p class="subtitle">IA Full-Stack Autonome - Cerveau propriétaire - Recherche temps réel</p>
+      <span class="status-badge online">● En ligne</span>
+    </header>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🧠</div>
+        <h3>Cerveau v3</h3>
+        <p>Deep reasoning, solutions toujours trouvées</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔍</div>
+        <h3>Recherche Universelle</h3>
+        <p>Google, GitHub, YouTube, Reddit, Telegram</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔒</div>
+        <h3>Sécurité Offensive</h3>
+        <p>Audit OWASP, CVE mapping, pentest, OSINT</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📦</div>
+        <h3>Projets ZIP</h3>
+        <p>Génération complète avec Docker, tests, README</p>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('chat', event)">💬 Chat IA</div>
+      <div class="tab" onclick="switchTab('dev', event)">👨‍💻 Espace Développeur</div>
+      <div class="tab" onclick="switchTab('api', event)">🔌 API Docs</div>
+    </div>
+
+    <div id="chat-tab" class="tab-content active">
+      <div class="grid">
+        <div class="card" style="grid-column: 1 / -1;">
+          <h2>Chat avec Worm Error 404</h2>
+          <div class="chat-container" id="chat-messages">
+            <div class="message assistant">
+              <strong>🐛 Worm:</strong> Salut ! Je suis ton IA full-stack autonome. Que veux-tu faire ?
+            </div>
+          </div>
+          <div class="input-group">
+            <textarea id="chat-input" rows="2" placeholder="Écris ta demande ici..."></textarea>
+            <button onclick="sendMessage()">Envoyer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="dev-tab" class="tab-content">
+      <div class="grid">
+        <div class="card">
+          <h2>🔑 Ta Clé API</h2>
+          <p>Colle ta clé API générée par le bot Telegram :</p>
+          <div class="api-key-input">
+            <input type="password" id="api-key-input" placeholder="sk-worm-xxxxxxxxxxxxxxxx">
+            <button onclick="saveApiKey()">Sauvegarder</button>
+          </div>
+          <div id="api-key-status"></div>
+        </div>
+        <div class="card">
+          <h2>📊 Statut</h2>
+          <div id="dev-status">
+            <p>Connecte-toi avec ta clé API pour voir tes stats.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card dev-section">
+        <h2>🧪 Testeur d'API</h2>
+        <div class="input-group" style="margin-bottom: 1rem;">
+          <select id="api-endpoint">
+            <option value="/v1/chat/completions">POST /v1/chat/completions</option>
+            <option value="/v1/code/analyze">POST /v1/code/analyze</option>
+            <option value="/v1/code/fix">POST /v1/code/fix</option>
+            <option value="/v1/search">POST /v1/search</option>
+            <option value="/v1/models">GET /v1/models</option>
+            <option value="/v1/stats">GET /v1/stats</option>
+          </select>
+        </div>
+        <textarea id="api-body" rows="4" placeholder='{"messages": [{"role":"user","content":"Crée une API REST"}]}'></textarea>
+        <button onclick="testApi()" style="margin-top: 0.5rem;">Tester l'API</button>
+        <pre id="api-response" style="margin-top: 1rem; display: none;"></pre>
+      </div>
+    </div>
+
+    <div id="api-tab" class="tab-content">
+      <div class="card">
+        <h2>📚 Documentation API</h2>
+        <h3>Authentification</h3>
+        <p>Header requis :</p>
+        <pre>Authorization: Bearer sk-worm-xxxxxxxxxxxxxxxx</pre>
+      </div>
+    </div>
+
+    <footer>
+      <p>🐛 <strong>Worm Error 404 v3.0</strong> - Propulsé par un cerveau propriétaire</p>
+    </footer>
+  </div>
+
+  <script>
+    let apiKey = localStorage.getItem('worm_api_key') || '';
+
+    function switchTab(tabName, event) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      if (event && event.target) event.target.classList.add('active');
+      document.getElementById(tabName + '-tab').classList.add('active');
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('api-key-input').value.trim();
+      if (!key || !key.startsWith('sk-worm-')) {
+        document.getElementById('api-key-status').innerHTML = '<p style="color: var(--danger);">❌ Clé invalide. Format: sk-worm-...</p>';
+        return;
+      }
+      apiKey = key;
+      localStorage.setItem('worm_api_key', apiKey);
+      document.getElementById('api-key-status').innerHTML = '<p style="color: var(--success);">✅ Clé API sauvegardée !</p>';
+      loadStats();
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const message = input.value.trim();
+      if (!message) return;
+
+      const chatContainer = document.getElementById('chat-messages');
+      chatContainer.innerHTML += `<div class="message user"><strong>Vous:</strong> ${escapeHtml(message)}</div>`;
+      input.value = '';
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      const thinkingId = 'thinking-' + Date.now();
+      chatContainer.innerHTML += `<div class="message assistant thinking" id="${thinkingId}"><strong>🧠 Worm:</strong> Réflexion en cours...</div>`;
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      try {
+        const response = await fetch('/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: 'worm-fullstack-v3',
+            messages: [{ role: 'user', content: message }]
+          })
+        });
+
+        const data = await response.json();
+        document.getElementById(thinkingId).remove();
+        
+        if (data.error) {
+          chatContainer.innerHTML += `<div class="message assistant"><strong>❌ Erreur:</strong> ${escapeHtml(data.error)}</div>`;
+        } else {
+          let content = data.choices?.[0]?.message?.content || data.analysis || data.results || 'Pas de réponse';
+          chatContainer.innerHTML += `<div class="message assistant"><strong>🐛 Worm:</strong><br>${formatMarkdown(content)}</div>`;
+        }
+      } catch (err) {
+        document.getElementById(thinkingId)?.remove();
+        chatContainer.innerHTML += `<div class="message assistant"><strong>❌ Erreur:</strong> ${escapeHtml(err.message)}</div>`;
+      }
+      
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    async function testApi() {
+      const endpoint = document.getElementById('api-endpoint').value;
+      const bodyStr = document.getElementById('api-body').value;
+      const responseEl = document.getElementById('api-response');
+      
+      try {
+        const options = {
+          method: endpoint.startsWith('GET') ? 'GET' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          }
+        };
+        
+        if (options.method === 'POST' && bodyStr) {
+          options.body = bodyStr;
+        }
+
+        const response = await fetch(endpoint, options);
+        const data = await response.json();
+        
+        responseEl.style.display = 'block';
+        responseEl.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        responseEl.style.display = 'block';
+        responseEl.textContent = 'Erreur: ' + err.message;
+      }
+    }
+
+    async function loadStats() {
+      if (!apiKey) return;
+      try {
+        const response = await fetch('/v1/stats', {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        const data = await response.json();
+        document.getElementById('dev-status').innerHTML = `
+          <p><strong>Tier:</strong> ${data.tier}</p>
+          <p><strong>Requêtes totales:</strong> ${data.total_requests}</p>
+          <p><strong>Latence moyenne:</strong> ${data.avg_latency_ms}ms</p>
+          <p><strong>Status:</strong> <span style="color: var(--success)">${data.status}</span></p>
+        `;
+      } catch (e) {
+        document.getElementById('dev-status').innerHTML = '<p style="color: var(--danger);">Erreur de chargement des stats</p>';
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function formatMarkdown(text) {
+      return escapeHtml(text)
+        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    }
+
+    if (apiKey) {
+      document.getElementById('api-key-input').value = apiKey;
+      loadStats();
+    }
+
+    document.getElementById('chat-input')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>

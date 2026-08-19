@@ -1,13 +1,14 @@
-import { Router } from "express";
-import { register, login, refresh, logout, me } from "../controllers/auth.controller";
-import { requireAuth } from "../middleware/auth";
+import { Router } from 'express';
+import { verifyApiKey } from '../middleware/auth';
 
 const router = Router();
 
-router.post("/register", register);
-router.post("/login", login);
-router.post("/refresh", refresh);
-router.post("/logout", logout);
-router.get("/me", requireAuth, me);
+router.get('/status', verifyApiKey, (req, res) => {
+  res.json({
+    status: 'online',
+    message: 'Clé API valide !',
+    user: (req as any).userApi
+  });
+});
 
 export default router;

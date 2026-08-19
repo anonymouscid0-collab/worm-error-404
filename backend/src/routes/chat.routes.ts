@@ -1,56 +1,32 @@
-import { Router } from "express";
-import multer from "multer";
-import path from "path";
-import { requireAuth } from "../middleware/auth";
-import { enforceMessageLimit } from "../middleware/messageLimit";
-import { env } from "../config/env";
-import {
-  listConversations,
-  getConversation,
-  updateConversationTheme,
-  deleteConversation,
-  sendMessage,
-} from "../controllers/chat.controller";
+import { Router, Request, Response } from 'express';
+import { verifyApiKey } from '../middleware/auth';
+import wormBrain from '../services/wormBrainV3';
 
 const router = Router();
 
-const storage = multer.diskStorage({
-  destination: env.uploadDir,
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${unique}${path.extname(file.originalname)}`);
-  },
+router.post('/message', verifyApiKey, async (req: Request, res: Response) => {
+  try {
+    const { message } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Le champ message est requis.' });
+    }
+
+    const userApi = (req as any).userApi;
+    const aiResponse = await wormBrain.processRequest(message, userApi);
+
+    return res.json({
+      status: 'success',
+      prompt: message,
+      reply: aiResponse,
+      user: userApi
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      error: 'Erreur Brain IA',
+      message: error.message
+    });
+  }
 });
-
-const upload = multer({
-  storage,
-  limits: { fileSize: env.maxFileSizeMb * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowed = [
-      "image/png",
-      "image/jpeg",
-      "image/webp",
-      "image/gif",
-      "application/zip",
-      "application/x-zip-compressed",
-      "application/pdf",
-      "text/plain",
-    ];
-    cb(null, allowed.includes(file.mimetype));
-  },
-});
-
-router.get("/conversations", requireAuth, listConversations);
-router.get("/conversations/:id", requireAuth, getConversation);
-router.patch("/conversations/:id/theme", requireAuth, updateConversationTheme);
-router.delete("/conversations/:id", requireAuth, deleteConversation);
-
-router.post(
-  "/messages",
-  requireAuth,
-  enforceMessageLimit,
-  upload.array("attachments", 5) as unknown as import("express").RequestHandler,
-  sendMessage
-);
 
 export default router;
