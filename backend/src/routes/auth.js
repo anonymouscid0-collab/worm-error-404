@@ -6,14 +6,32 @@ const db = require('../services/db');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'worm-secret-key-change-me-prod';
 
-// Créer le compte admin au démarrage si ADMIN_EMAIL est défini
+// ============================================
+// CRÉER / METTRE À JOUR LE COMPTE ADMIN AUTO
+// ============================================
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 if (ADMIN_EMAIL && ADMIN_PASSWORD) {
-  const existingAdmin = db.getUserByEmail(ADMIN_EMAIL);
-  if (!existingAdmin) {
-    const hash = bcrypt.hashSync(ADMIN_PASSWORD, 10);
+  const hash = bcrypt.hashSync(ADMIN_PASSWORD, 10);
+  
+  // Chercher un admin existant
+  const allUsers = db.getAllUsers ? db.getAllUsers() : [];
+  const existingAdmin = allUsers.find(u => u.role === 'ADMIN');
+  
+  if (existingAdmin) {
+    // Mettre à jour l'admin existant avec les nouvelles infos
+    db.updateUser(existingAdmin.id, {
+      email: ADMIN_EMAIL,
+      password: hash,
+      name: 'Admin Worm',
+      plan: 'PRO',
+      freeLimit: 999999,
+      role: 'ADMIN'
+    });
+    console.log('👑 Compte admin mis à jour:', ADMIN_EMAIL);
+  } else {
+    // Créer un nouvel admin
     db.saveUser({
       id: 'admin_' + Date.now(),
       email: ADMIN_EMAIL,
