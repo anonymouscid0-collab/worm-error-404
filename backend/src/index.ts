@@ -6,8 +6,6 @@ import cors from 'cors';
 import path from 'path';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import passport from 'passport';
-import session from 'express-session';
 
 const app = express();
 const httpServer = createServer(app);
@@ -19,15 +17,6 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
-
-app.use(session({
-  secret: process.env.JWT_SECRET || 'worm-secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false }
-}));
-app.use(passport.initialize());
-app.use(passport.session());
 
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} | ${req.method} ${req.path}`);
@@ -76,7 +65,7 @@ app.get('/', (req, res) => {
     version: '3.0.0',
     status: 'online',
     telegram: telegramBot ? 'connected' : 'not configured',
-    features: ['auth', 'email-verification', 'google-oauth', 'chat', 'ai-v3', 'telegram-bot']
+    features: ['auth', 'chat', 'ai-v3', 'telegram-bot']
   });
 });
 
@@ -102,7 +91,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`🐛 WORM ERROR 404 v3.0 PRO en ligne sur le port ${PORT}`);
+  console.log(`🐛 WORM ERROR 404 v3.0 en ligne sur le port ${PORT}`);
 });
 
 export default app;
