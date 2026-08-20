@@ -102,7 +102,7 @@ router.post('/api/auth/login', async (req, res) => {
 
     const user = db.getUserByEmail(email);
     if (!user) return res.status(401).json({ error: 'Identifiants incorrects' });
-    if (!user.isVerified) return res.status(403). { error: 'Email non vérifié. Vérifie tes emails.' });
+    if (!user.isVerified) return res.status(403).json({ error: 'Email non vérifié. Vérifie tes emails.' });
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Identifiants incorrects' });
