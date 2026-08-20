@@ -35,6 +35,9 @@ app.use('/', authRoutes);
 const { router: chatRoutes } = require('./routes/chat');
 app.use('/', chatRoutes);
 
+const adminRoutes = require('./routes/admin');
+app.use('/', adminRoutes);
+
 // ============================================
 // SOCKET.IO
 // ============================================
@@ -65,7 +68,7 @@ app.get('/', (req, res) => {
     version: '3.0.0',
     status: 'online',
     telegram: telegramBot ? 'connected' : 'not configured',
-    features: ['auth', 'chat', 'ai-v3', 'telegram-bot']
+    features: ['auth', 'admin-panel', 'chat', 'ai-v3', 'telegram-bot']
   });
 });
 
@@ -91,7 +94,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`🐛 WORM ERROR 404 v3.0 en ligne sur le port ${PORT}`);
+  console.log(`🐛 WORM ERROR 404 v3.0 PRO en ligne sur le port ${PORT}`);
 });
 
 export default app;

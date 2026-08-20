@@ -6,7 +6,29 @@ const db = require('../services/db');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'worm-secret-key-change-me-prod';
 
-// Middleware auth
+// Créer le compte admin au démarrage si ADMIN_EMAIL est défini
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+if (ADMIN_EMAIL && ADMIN_PASSWORD) {
+  const existingAdmin = db.getUserByEmail(ADMIN_EMAIL);
+  if (!existingAdmin) {
+    const hash = bcrypt.hashSync(ADMIN_PASSWORD, 10);
+    db.saveUser({
+      id: 'admin_' + Date.now(),
+      email: ADMIN_EMAIL,
+      name: 'Admin Worm',
+      password: hash,
+      isVerified: 1,
+      plan: 'PRO',
+      messagesUsed: 0,
+      freeLimit: 999999,
+      role: 'ADMIN'
+    });
+    console.log('👑 Compte admin créé:', ADMIN_EMAIL);
+  }
+}
+
 function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Non authentifié' });
@@ -18,7 +40,7 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// POST /api/auth/register — simple, direct, pas de code email
+// POST /api/auth/register
 router.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
@@ -43,18 +65,10 @@ router.post('/api/auth/register', async (req, res) => {
       role: 'USER'
     });
 
-    const token = jwt.sign({ id: userId, email, plan: 'FREE' }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: userId, email, plan: 'FREE', role: 'USER' }, JWT_SECRET, { expiresIn: '7d' });
     res.json({
       accessToken: token,
-      user: {
-        id: userId,
-        email,
-        name: name || email.split('@')[0],
-        plan: 'FREE',
-        messagesUsed: 0,
-        freeLimit: 15,
-        role: 'USER'
-      }
+      user: { id: userId, email, name: name || email.split('@')[0], plan: 'FREE', messagesUsed: 0, freeLimit: 15, role: 'USER' }
     });
   } catch (err) {
     console.error('Register error:', err);
@@ -74,7 +88,7 @@ router.post('/api/auth/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Identifiants incorrects' });
 
-    const token = jwt.sign({ id: user.id, email: user.email, plan: user.plan }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, email: user.email, plan: user.plan, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     res.json({
       accessToken: token,
       user: {

@@ -24,14 +24,17 @@ function setupChatSocket(io) {
         const user = db.getUserById(socket.user.id);
         if (!user) return socket.emit('chat:error', { error: 'Utilisateur non trouvé' });
 
-        // Vérifier limite messages gratuits
-        if (user.plan === 'FREE' && user.messagesUsed >= user.freeLimit) {
+        // ADMIN = ILLIMITÉ, sinon vérifier limite
+        const isAdmin = user.role === 'ADMIN';
+        if (!isAdmin && user.plan === 'FREE' && user.messagesUsed >= user.freeLimit) {
           socket.emit('chat:limit_reached');
           return;
         }
 
-        // Incrémenter compteur
-        db.updateUser(user.id, { messagesUsed: (user.messagesUsed || 0) + 1 });
+        // Incrémenter compteur (sauf admin)
+        if (!isAdmin) {
+          db.updateUser(user.id, { messagesUsed: (user.messagesUsed || 0) + 1 });
+        }
 
         // Réponse IA
         const result = await wormBrain.generateResponse(content, {

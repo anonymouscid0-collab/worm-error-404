@@ -1,7 +1,6 @@
 const Database = require('better-sqlite3');
 const db = new Database('worm_data.db');
 
-// Table clés API
 db.exec(`
   CREATE TABLE IF NOT EXISTS api_keys (
     key TEXT PRIMARY KEY,
@@ -12,7 +11,6 @@ db.exec(`
   )
 `);
 
-// Table utilisateurs
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -30,7 +28,6 @@ db.exec(`
   )
 `);
 
-// Table codes de vérification
 db.exec(`
   CREATE TABLE IF NOT EXISTS verification_codes (
     email TEXT PRIMARY KEY,
@@ -40,7 +37,6 @@ db.exec(`
 `);
 
 module.exports = {
-  // Clés API
   saveKey: (key, userId, plan, days = 7) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
@@ -55,8 +51,11 @@ module.exports = {
     const stmt = db.prepare('UPDATE api_keys SET requestsCount = requestsCount + 1 WHERE key = ?');
     stmt.run(key);
   },
+  getAllKeys: () => {
+    const stmt = db.prepare('SELECT * FROM api_keys');
+    return stmt.all();
+  },
 
-  // Users
   saveUser: (user) => {
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO users (id, email, name, password, googleId, avatar, plan, messagesUsed, freeLimit, isVerified, role)
@@ -77,14 +76,22 @@ module.exports = {
     const stmt = db.prepare('SELECT * FROM users WHERE googleId = ?');
     return stmt.get(googleId);
   },
+  getAllUsers: () => {
+    const stmt = db.prepare('SELECT id, email, name, plan, messagesUsed, freeLimit, role, createdAt FROM users ORDER BY createdAt DESC');
+    return stmt.all();
+  },
   updateUser: (id, fields) => {
     const keys = Object.keys(fields);
     const setClause = keys.map(k => `${k} = ?`).join(', ');
     const stmt = db.prepare(`UPDATE users SET ${setClause} WHERE id = ?`);
     stmt.run(...keys.map(k => fields[k]), id);
   },
+  deleteUser: (id) => {
+    const stmt = db.prepare('DELETE FROM users WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  },
 
-  // Verification codes
   saveCode: (email, code) => {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     const stmt = db.prepare('INSERT OR REPLACE INTO verification_codes (email, code, expiresAt) VALUES (?, ?, ?)');
