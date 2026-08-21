@@ -6,56 +6,43 @@ const db = require('../services/db');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'worm-secret-key-change-me-prod';
 
-// ============================================
-// ADMIN AUTO AU DÉMARRAGE
-// ============================================
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+// Créer admin au premier appel de /api/auth/login ou /api/auth/register
+let adminCreated = false;
 
-function setupAdmin() {
+function ensureAdmin() {
+  if (adminCreated) return;
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+  
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
     console.log('⚠️ ADMIN_EMAIL ou ADMIN_PASSWORD non définis');
     return;
   }
-
-  const hash = bcrypt.hashSync(ADMIN_PASSWORD, 10);
-
-  // Supprimer tous les anciens admins
+  
   try {
-    const users = db.getAllUsers ? db.getAllUsers() : [];
-    console.log('👥 Users trouvés au démarrage:', users.length);
-    users.forEach(u => {
-      console.log('  -', u.email, '| role:', u.role, '| id:', u.id);
-      if (u.role === 'ADMIN') {
-        const deleted = db.deleteUser(u.id);
-        console.log('🗑️ Admin supprimé:', u.email, '| success:', deleted);
-      }
-    });
+    const existing = db.getUserByEmail(ADMIN_EMAIL);
+    if (!existing) {
+      const hash = bcrypt.hashSync(ADMIN_PASSWORD, 10);
+      db.saveUser({
+        id: 'admin_' + Date.now(),
+        email: ADMIN_EMAIL,
+        name: 'Admin Worm',
+        password: hash,
+        isVerified: 1,
+        plan: 'PRO',
+        messagesUsed: 0,
+        freeLimit: 999999,
+        role: 'ADMIN'
+      });
+      console.log('👑 Admin créé:', ADMIN_EMAIL);
+    } else {
+      console.log('👑 Admin existe déjà:', ADMIN_EMAIL);
+    }
+    adminCreated = true;
   } catch (e) {
-    console.log('⚠️ Erreur suppression admins:', e.message);
-  }
-
-  // Créer le nouvel admin
-  try {
-    db.saveUser({
-      id: 'admin_' + Date.now(),
-      email: ADMIN_EMAIL,
-      name: 'Admin Worm',
-      password: hash,
-      isVerified: 1,
-      plan: 'PRO',
-      messagesUsed: 0,
-      freeLimit: 999999,
-      role: 'ADMIN'
-    });
-    console.log('👑 Admin créé:', ADMIN_EMAIL);
-  } catch (e) {
-    console.log('❌ Erreur création admin:', e.message);
+    console.log('⚠️ Erreur création admin:', e.message);
   }
 }
-
-// Exécuter au chargement du module
-setupAdmin();
 
 function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
@@ -68,15 +55,12 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// ============================================
-// ROUTE DE SECOURS : créer admin manuellement
-// ============================================
+// Route secours
 router.post('/api/admin/setup', (req, res) => {
   const { secret, email, password } = req.body;
   if (secret !== 'worm-setup-2026') {
     return res.status(403).json({ error: 'Secret incorrect' });
   }
-  
   const hash = bcrypt.hashSync(password, 10);
   db.saveUser({
     id: 'admin_' + Date.now(),
@@ -95,6 +79,7 @@ router.post('/api/admin/setup', (req, res) => {
 // POST /api/auth/register
 router.post('/api/auth/register', async (req, res) => {
   try {
+    ensureAdmin();
     const { email, password, name } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' });
     if (password.length < 6) return res.status(400).json({ error: 'Mot de passe trop court (min 6 caractères)' });
@@ -131,6 +116,7 @@ router.post('/api/auth/register', async (req, res) => {
 // POST /api/auth/login
 router.post('/api/auth/login', async (req, res) => {
   try {
+    ensureAdmin();
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' });
 

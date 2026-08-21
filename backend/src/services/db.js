@@ -1,5 +1,9 @@
 const Database = require('better-sqlite3');
-const db = new Database('worm_data.db');
+const path = require('path');
+
+// Utiliser /tmp sur Render (pas de problème de verrou), sinon local
+const dbPath = process.env.RENDER ? '/tmp/worm_data.db' : path.join(__dirname, '../../worm_data.db');
+const db = new Database(dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS api_keys (
