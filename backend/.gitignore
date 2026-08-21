@@ -5,3 +5,5 @@ uploads/
 *.db
 *.sqlite
 
+worm_data.db
+*.db
