@@ -54,16 +54,11 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
 }
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/chat.html')); // res.json({
-    name: 'Worm Error 404',
-    version: '3.0.0',
-    status: 'online',
-    telegram: telegramBot ? 'connected' : 'not configured'
-  });
+  res.sendFile(path.join(__dirname, '../public/chat.html'));
 });
 
 app.get('/health', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/chat.html')); // res.json({
+  res.json({
     status: 'ok',
     name: 'Worm Error 404',
     version: '3.0.0',
