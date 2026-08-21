@@ -51,17 +51,21 @@ export default function ChatPage() {
     }
     setCheckingAuth(false);
 
-    api
-      .get("/api/auth/me")
-      .then((res) => setUser(res.data))
+    fetch("https://worm-error-404.onrender.com/api/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => setUser(data))
       .catch(() => {
         localStorage.removeItem("accessToken");
         router.replace("/login");
       });
 
-    api
-      .get("/api/chat/conversations")
-      .then((res) => setConversations(res.data.conversations))
+    fetch("https://worm-error-404.onrender.com/api/chat/conversations", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => setConversations(data.conversations || []))
       .catch(() => {});
 
     const socket = io("https://worm-error-404.onrender.com", {
@@ -109,8 +113,12 @@ export default function ChatPage() {
   async function openConversation(id: string) {
     setConversationId(id);
     try {
-      const res = await api.get(`/api/chat/conversations/${id}`);
-      setMessages(res.data.conversation.messages);
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`https://worm-error-404.onrender.com/api/chat/conversations/${id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      setMessages(data.conversation?.messages || []);
     } catch {
       // on reste sur l'écran actuel sans planter
     }

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import { api } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,11 +18,17 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/api/auth/register", { name, email, password });
-      localStorage.setItem("accessToken", res.data.accessToken);
+      const res = await fetch("https://worm-error-404.onrender.com/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      localStorage.setItem("accessToken", data.accessToken);
       router.push("/chat");
     } catch (err: any) {
-      const errMsg = err?.response?.data?.error ?? err?.message ?? "Erreur réseau - vérifiez votre connexion"; setError(errMsg);
+      setError(err.message || "Erreur réseau - vérifiez votre connexion");
     } finally {
       setLoading(false);
     }
@@ -58,7 +63,7 @@ export default function RegisterPage() {
             <input
               type="password"
               required
-              minLength={8}
+              minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-lg border border-line bg-card px-4 py-2.5 text-sm outline-none focus:border-brand"

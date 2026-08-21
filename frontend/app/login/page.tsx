@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,11 +17,17 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/api/auth/login", { email, password });
-      localStorage.setItem("accessToken", res.data.accessToken);
+      const res = await fetch("https://worm-error-404.onrender.com/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      localStorage.setItem("accessToken", data.accessToken);
       router.push("/chat");
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? "Identifiants incorrects.");
+      setError(err.message || "Identifiants incorrects.");
     } finally {
       setLoading(false);
     }

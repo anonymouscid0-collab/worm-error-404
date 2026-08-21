@@ -18,21 +18,12 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
 
-// ============================================
-// LOGGING DEBUG — voir TOUTES les requêtes
-// ============================================
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  console.log('  Headers:', JSON.stringify(req.headers, null, 2));
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log('  Body:', JSON.stringify(req.body, null, 2));
-  }
   next();
 });
 
-// ============================================
-// ROUTES
-// ============================================
+// Routes
 const wormApiRoutes = require('./routes/wormApi.routes');
 app.use('/', wormApiRoutes);
 
@@ -45,15 +36,11 @@ app.use('/', chatRoutes);
 const adminRoutes = require('./routes/admin');
 app.use('/', adminRoutes);
 
-// ============================================
-// SOCKET.IO
-// ============================================
+// Socket.IO
 const setupChatSocket = require('./socket/chat');
 setupChatSocket(io);
 
-// ============================================
-// BOT TELEGRAM
-// ============================================
+// Bot Telegram
 let telegramBot: any = null;
 if (process.env.TELEGRAM_BOT_TOKEN) {
   try {
@@ -66,16 +53,12 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
   }
 }
 
-// ============================================
-// ROUTES SYSTÈME
-// ============================================
 app.get('/', (req, res) => {
   res.json({
     name: 'Worm Error 404',
     version: '3.0.0',
     status: 'online',
-    telegram: telegramBot ? 'connected' : 'not configured',
-    features: ['auth', 'admin-panel', 'chat', 'ai-v3', 'telegram-bot']
+    telegram: telegramBot ? 'connected' : 'not configured'
   });
 });
 
