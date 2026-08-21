@@ -18,8 +18,15 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
 
+// ============================================
+// LOGGING DEBUG — voir TOUTES les requêtes
+// ============================================
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.path}`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  console.log('  Headers:', JSON.stringify(req.headers, null, 2));
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('  Body:', JSON.stringify(req.body, null, 2));
+  }
   next();
 });
 
