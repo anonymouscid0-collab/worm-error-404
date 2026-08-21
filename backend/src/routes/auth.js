@@ -6,41 +6,35 @@ const db = require('../services/db');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'worm-secret-key-change-me-prod';
 
-// Créer admin au premier appel de /api/auth/login ou /api/auth/register
-let adminCreated = false;
+// Créer admin au démarrage
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
-function ensureAdmin() {
-  if (adminCreated) return;
-  const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-  
-  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-    console.log('⚠️ ADMIN_EMAIL ou ADMIN_PASSWORD non définis');
-    return;
-  }
-  
-  try {
-    const existing = db.getUserByEmail(ADMIN_EMAIL);
-    if (!existing) {
-      const hash = bcrypt.hashSync(ADMIN_PASSWORD, 10);
-      db.saveUser({
-        id: 'admin_' + Date.now(),
-        email: ADMIN_EMAIL,
-        name: 'Admin Worm',
-        password: hash,
-        isVerified: 1,
-        plan: 'PRO',
-        messagesUsed: 0,
-        freeLimit: 999999,
-        role: 'ADMIN'
-      });
-      console.log('👑 Admin créé:', ADMIN_EMAIL);
-    } else {
-      console.log('👑 Admin existe déjà:', ADMIN_EMAIL);
-    }
-    adminCreated = true;
-  } catch (e) {
-    console.log('⚠️ Erreur création admin:', e.message);
+if (ADMIN_EMAIL && ADMIN_PASSWORD) {
+  const existing = db.getUserByEmail(ADMIN_EMAIL);
+  if (!existing) {
+    db.saveUser({
+      id: 'admin_' + Date.now(),
+      email: ADMIN_EMAIL,
+      name: 'Admin Worm',
+      password: bcrypt.hashSync(ADMIN_PASSWORD, 10),
+      isVerified: 1,
+      plan: 'PRO',
+      messagesUsed: 0,
+      freeLimit: 999999,
+      role: 'ADMIN',
+      createdAt: new Date().toISOString()
+    });
+    console.log('👑 Admin créé:', ADMIN_EMAIL);
+  } else {
+    // Mettre à jour le mot de passe si changé
+    db.updateUser(existing.id, {
+      password: bcrypt.hashSync(ADMIN_PASSWORD, 10),
+      role: 'ADMIN',
+      plan: 'PRO',
+      freeLimit: 999999
+    });
+    console.log('👑 Admin mis à jour:', ADMIN_EMAIL);
   }
 }
 
@@ -61,17 +55,17 @@ router.post('/api/admin/setup', (req, res) => {
   if (secret !== 'worm-setup-2026') {
     return res.status(403).json({ error: 'Secret incorrect' });
   }
-  const hash = bcrypt.hashSync(password, 10);
   db.saveUser({
     id: 'admin_' + Date.now(),
     email,
     name: 'Admin Worm',
-    password: hash,
+    password: bcrypt.hashSync(password, 10),
     isVerified: 1,
     plan: 'PRO',
     messagesUsed: 0,
     freeLimit: 999999,
-    role: 'ADMIN'
+    role: 'ADMIN',
+    createdAt: new Date().toISOString()
   });
   res.json({ message: 'Admin créé', email });
 });
@@ -79,7 +73,6 @@ router.post('/api/admin/setup', (req, res) => {
 // POST /api/auth/register
 router.post('/api/auth/register', async (req, res) => {
   try {
-    ensureAdmin();
     const { email, password, name } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' });
     if (password.length < 6) return res.status(400).json({ error: 'Mot de passe trop court (min 6 caractères)' });
@@ -99,7 +92,8 @@ router.post('/api/auth/register', async (req, res) => {
       plan: 'FREE',
       messagesUsed: 0,
       freeLimit: 15,
-      role: 'USER'
+      role: 'USER',
+      createdAt: new Date().toISOString()
     });
 
     const token = jwt.sign({ id: userId, email, plan: 'FREE', role: 'USER' }, JWT_SECRET, { expiresIn: '7d' });
@@ -116,19 +110,16 @@ router.post('/api/auth/register', async (req, res) => {
 // POST /api/auth/login
 router.post('/api/auth/login', async (req, res) => {
   try {
-    ensureAdmin();
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' });
 
     const user = db.getUserByEmail(email);
     if (!user) {
-      console.log('❌ Login failed: user not found', email);
       return res.status(401).json({ error: 'Identifiants incorrects' });
     }
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
-      console.log('❌ Login failed: wrong password', email);
       return res.status(401).json({ error: 'Identifiants incorrects' });
     }
 

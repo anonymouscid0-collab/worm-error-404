@@ -1,112 +1,101 @@
-const Database = require('better-sqlite3');
+const fs = require('fs');
 const path = require('path');
 
-// Utiliser /tmp sur Render (pas de problème de verrou), sinon local
-const dbPath = process.env.RENDER ? '/tmp/worm_data.db' : path.join(__dirname, '../../worm_data.db');
-const db = new Database(dbPath);
+const DB_PATH = process.env.RENDER ? '/tmp/worm_db.json' : path.join(__dirname, '../../worm_db.json');
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS api_keys (
-    key TEXT PRIMARY KEY,
-    userId TEXT,
-    plan TEXT,
-    expiresAt DATETIME,
-    requestsCount INTEGER DEFAULT 0
-  )
-`);
+function loadDB() {
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+    }
+  } catch (e) {
+    console.log('DB load error:', e.message);
+  }
+  return { users: [], api_keys: [] };
+}
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    email TEXT UNIQUE,
-    name TEXT,
-    password TEXT,
-    googleId TEXT,
-    avatar TEXT,
-    plan TEXT DEFAULT 'FREE',
-    messagesUsed INTEGER DEFAULT 0,
-    freeLimit INTEGER DEFAULT 15,
-    isVerified INTEGER DEFAULT 0,
-    role TEXT DEFAULT 'USER',
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+function saveDB(db) {
+  try {
+    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  } catch (e) {
+    console.log('DB save error:', e.message);
+  }
+}
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS verification_codes (
-    email TEXT PRIMARY KEY,
-    code TEXT,
-    expiresAt DATETIME
-  )
-`);
+let db = loadDB();
 
 module.exports = {
+  // Users
+  saveUser: (user) => {
+    db.users = db.users.filter(u => u.id !== user.id && u.email !== user.email);
+    db.users.push(user);
+    saveDB(db);
+  },
+  getUserByEmail: (email) => {
+    return db.users.find(u => u.email === email) || null;
+  },
+  getUserById: (id) => {
+    return db.users.find(u => u.id === id) || null;
+  },
+  getUserByGoogleId: (googleId) => {
+    return db.users.find(u => u.googleId === googleId) || null;
+  },
+  getAllUsers: () => {
+    return db.users.map(u => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      plan: u.plan,
+      messagesUsed: u.messagesUsed,
+      freeLimit: u.freeLimit,
+      role: u.role,
+      createdAt: u.createdAt
+    }));
+  },
+  updateUser: (id, fields) => {
+    const user = db.users.find(u => u.id === id);
+    if (user) {
+      Object.assign(user, fields);
+      saveDB(db);
+    }
+  },
+  deleteUser: (id) => {
+    const before = db.users.length;
+    db.users = db.users.filter(u => u.id !== id);
+    saveDB(db);
+    return db.users.length < before;
+  },
+
+  // API Keys
   saveKey: (key, userId, plan, days = 7) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
-    const stmt = db.prepare('INSERT OR REPLACE INTO api_keys (key, userId, plan, expiresAt) VALUES (?, ?, ?, ?)');
-    stmt.run(key, userId, plan, expiresAt.toISOString());
+    db.api_keys = db.api_keys.filter(k => k.key !== key);
+    db.api_keys.push({ key, userId, plan, expiresAt: expiresAt.toISOString(), requestsCount: 0 });
+    saveDB(db);
   },
   getKey: (key) => {
-    const stmt = db.prepare('SELECT * FROM api_keys WHERE key = ?');
-    return stmt.get(key);
+    return db.api_keys.find(k => k.key === key) || null;
   },
   incrementUsage: (key) => {
-    const stmt = db.prepare('UPDATE api_keys SET requestsCount = requestsCount + 1 WHERE key = ?');
-    stmt.run(key);
+    const k = db.api_keys.find(k => k.key === key);
+    if (k) {
+      k.requestsCount = (k.requestsCount || 0) + 1;
+      saveDB(db);
+    }
   },
   getAllKeys: () => {
-    const stmt = db.prepare('SELECT * FROM api_keys');
-    return stmt.all();
+    return db.api_keys;
   },
 
-  saveUser: (user) => {
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO users (id, email, name, password, googleId, avatar, plan, messagesUsed, freeLimit, isVerified, role)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(user.id, user.email, user.name, user.password || null, user.googleId || null, user.avatar || null,
-      user.plan || 'FREE', user.messagesUsed || 0, user.freeLimit || 15, user.isVerified || 0, user.role || 'USER');
-  },
-  getUserByEmail: (email) => {
-    const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
-    return stmt.get(email);
-  },
-  getUserById: (id) => {
-    const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
-    return stmt.get(id);
-  },
-  getUserByGoogleId: (googleId) => {
-    const stmt = db.prepare('SELECT * FROM users WHERE googleId = ?');
-    return stmt.get(googleId);
-  },
-  getAllUsers: () => {
-    const stmt = db.prepare('SELECT id, email, name, plan, messagesUsed, freeLimit, role, createdAt FROM users ORDER BY createdAt DESC');
-    return stmt.all();
-  },
-  updateUser: (id, fields) => {
-    const keys = Object.keys(fields);
-    const setClause = keys.map(k => `${k} = ?`).join(', ');
-    const stmt = db.prepare(`UPDATE users SET ${setClause} WHERE id = ?`);
-    stmt.run(...keys.map(k => fields[k]), id);
-  },
-  deleteUser: (id) => {
-    const stmt = db.prepare('DELETE FROM users WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  },
-
+  // Codes
   saveCode: (email, code) => {
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    const stmt = db.prepare('INSERT OR REPLACE INTO verification_codes (email, code, expiresAt) VALUES (?, ?, ?)');
-    stmt.run(email, code, expiresAt.toISOString());
+    // Pas besoin avec auth simple
   },
   getCode: (email) => {
-    const stmt = db.prepare('SELECT * FROM verification_codes WHERE email = ?');
-    return stmt.get(email);
+    return null;
   },
   deleteCode: (email) => {
-    const stmt = db.prepare('DELETE FROM verification_codes WHERE email = ?');
-    stmt.run(email);
+    // Pas besoin
   },
 };
