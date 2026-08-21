@@ -76,7 +76,7 @@ const API = ''; // Même domaine
 let token = localStorage.getItem('token');
 let user = null;
 
-if (token) showChat();
+if (token) { showChat(); } else { document.getElementById('login').style.display = 'flex'; }
 
 function showError(msg) { document.getElementById('error').textContent = msg; }
 function showRegError(msg) { document.getElementById('reg-error').textContent = msg; }
@@ -141,18 +141,27 @@ async function register() {
 }
 
 async function showChat() {
-  document.getElementById('login').style.display = 'none';
-  document.getElementById('chat').style.display = 'flex';
-  
   try {
     const res = await fetch(API + '/api/auth/me', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
+    
+    if (!res.ok) throw new Error('Session expirée');
+    
     user = await res.json();
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('chat').style.display = 'flex';
     document.getElementById('user-info').textContent = (user.name || user.email) + ' | Plan: ' + user.plan;
-  } catch(e) {}
-  
-  addMessage('bot', '👋 Salut ! Je suis WORM ERROR 404 v3. Pose-moi tes questions sur le code, les bugs, ou demande-moi de chercher quelque chose.');
+    addMessage('bot', '👋 Salut ! Je suis WORM ERROR 404 v3. Pose-moi tes questions.');
+    
+  } catch(e) {
+    localStorage.removeItem('token');
+    token = null;
+    user = null;
+    showError('Session expirée, reconnecte-toi');
+    document.getElementById('login').style.display = 'flex';
+    document.getElementById('chat').style.display = 'none';
+  }
 }
 
 function addMessage(sender, text) {
@@ -194,7 +203,7 @@ async function sendMessage() {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'x-api-key': 'sk-worm-' + token
+        'Authorization': 'Bearer ' + token
       },
       body: JSON.stringify({ 
         messages: [{ role: 'user', content: text }],

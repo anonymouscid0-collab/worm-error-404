@@ -54,7 +54,7 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
 }
 
 app.get('/', (req, res) => {
-  res.json({
+  res.sendFile(path.join(__dirname, '../public/chat.html')); // res.json({
     name: 'Worm Error 404',
     version: '3.0.0',
     status: 'online',
@@ -63,7 +63,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.json({
+  res.sendFile(path.join(__dirname, '../public/chat.html')); // res.json({
     status: 'ok',
     name: 'Worm Error 404',
     version: '3.0.0',
