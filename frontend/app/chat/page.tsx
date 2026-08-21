@@ -64,7 +64,7 @@ export default function ChatPage() {
       .then((res) => setConversations(res.data.conversations))
       .catch(() => {});
 
-    const socket = io(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", {
+    const socket = io("https://worm-error-404.onrender.com", {
       auth: { token },
     });
     socketRef.current = socket;

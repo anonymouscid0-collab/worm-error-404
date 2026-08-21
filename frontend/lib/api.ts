@@ -1,8 +1,13 @@
 import axios from "axios";
 
+const API_URL = "https://worm-error-404.onrender.com";
+
 export const api = axios.create({
-  baseURL: "https://worm-error-404.onrender.com",
+  baseURL: API_URL,
   withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  }
 });
 
 api.interceptors.request.use((config) => {
