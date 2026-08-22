@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'path';
 
 import * as authController from '../controllers/auth.controller';
 import * as chatController from '../controllers/chat.controller';
@@ -37,7 +36,8 @@ router.post('/api/chat/conversations', requireAuth, chatController.createConvers
 router.get('/api/chat/conversations/:id', requireAuth, chatController.getConversation);
 router.patch('/api/chat/conversations/:id/theme', requireAuth, chatController.updateConversationTheme);
 router.delete('/api/chat/conversations/:id', requireAuth, chatController.deleteConversation);
-router.post('/api/chat/messages', requireAuth, upload.array('files'), chatController.sendMessage);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+router.post('/api/chat/messages', requireAuth, upload.array('files') as any, chatController.sendMessage);
 
 // ========== PREMIUM ==========
 router.post('/api/premium/activate', requireAuth, premiumController.activatePremiumKey);
