@@ -58,6 +58,19 @@ app.use('/', apiRoutes);
 // Socket.IO chat
 setupChatSocket(io);
 
+// Bot Telegram
+let telegramBot: any = null;
+if (process.env.TELEGRAM_BOT_TOKEN) {
+  try {
+    const WormTelegramBotV3 = require('./services/telegramBotV3');
+    telegramBot = new WormTelegramBotV3(process.env.TELEGRAM_BOT_TOKEN);
+    telegramBot.start();
+    console.log('🤖 Bot Telegram v3 initialisé');
+  } catch (err: any) {
+    console.log('⚠️ Bot Telegram non démarré:', err.message);
+  }
+}
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({
@@ -65,6 +78,7 @@ app.get('/health', (req, res) => {
     name: 'WORM ERROR 404',
     version: '3.1.0',
     brain: 'worm-fullstack-v3',
+    telegram: telegramBot ? 'online' : 'offline',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
