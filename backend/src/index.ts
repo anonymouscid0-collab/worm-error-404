@@ -17,25 +17,15 @@ import { setupChatSocket } from './socket/chatSocket';
 const app = express();
 const httpServer = createServer(app);
 
-// Socket.IO
 const io = new Server(httpServer, {
-  cors: { 
-    origin: env.frontendUrl, 
-    methods: ['GET', 'POST'], 
-    credentials: true 
-  }
+  cors: { origin: env.frontendUrl, methods: ['GET', 'POST'], credentials: true }
 });
 
-// Sécurité
 app.use(helmet());
-app.use(cors({ 
-  origin: env.frontendUrl, 
-  credentials: true 
-}));
+app.use(cors({ origin: env.frontendUrl, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(cookieParser());
 
-// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -43,35 +33,30 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Static uploads
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-// Logging
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
-// Routes API unifiées
 app.use('/', apiRoutes);
-
-// Socket.IO chat
 setupChatSocket(io);
 
-// Bot Telegram
 let telegramBot: any = null;
 if (process.env.TELEGRAM_BOT_TOKEN) {
   try {
     const WormTelegramBotV3 = require('./services/telegramBotV3');
     telegramBot = new WormTelegramBotV3(process.env.TELEGRAM_BOT_TOKEN);
-    telegramBot.start();
+    telegramBot.start().catch((err: any) => {
+      console.log('⚠️ Bot Telegram non démarré:', err.message);
+    });
     console.log('🤖 Bot Telegram v3 initialisé');
   } catch (err: any) {
     console.log('⚠️ Bot Telegram non démarré:', err.message);
   }
 }
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -84,12 +69,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 404
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found', path: req.path });
 });
 
-// Error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('ERROR:', err);
   res.status(500).json({ error: 'Internal server error', message: err.message });
