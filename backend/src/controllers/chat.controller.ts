@@ -124,3 +124,14 @@ export async function sendMessage(req: AuthRequest, res: Response) {
     downloadFileName: aiResult.downloadFileName,
   });
 }
+
+export async function createConversation(req: AuthRequest, res: Response) {
+  const { title } = req.body as { title?: string };
+  const conversation = await prisma.conversation.create({
+    data: { 
+      userId: req.user!.userId, 
+      title: title || "Nouvelle conversation" 
+    },
+  });
+  return res.status(201).json({ conversation });
+}

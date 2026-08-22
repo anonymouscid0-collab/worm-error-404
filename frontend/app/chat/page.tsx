@@ -8,6 +8,8 @@ import { Paperclip, X } from "lucide-react";
 import { api, CurrentUser } from "@/lib/api";
 import MessageContent from "@/components/MessageContent";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
 interface ChatMessage {
   id: string;
   sender: "USER" | "ASSISTANT";
@@ -51,26 +53,18 @@ export default function ChatPage() {
     }
     setCheckingAuth(false);
 
-    fetch("https://worm-error-404.onrender.com/api/auth/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => setUser(data))
+    api.get("/api/auth/me")
+      .then((r) => setUser(r.data))
       .catch(() => {
         localStorage.removeItem("accessToken");
         router.replace("/login");
       });
 
-    fetch("https://worm-error-404.onrender.com/api/chat/conversations", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => setConversations(data.conversations || []))
+    api.get("/api/chat/conversations")
+      .then((r) => setConversations(r.data.conversations || []))
       .catch(() => {});
 
-    const socket = io("https://worm-error-404.onrender.com", {
-      auth: { token },
-    });
+    const socket = io(API_URL, { auth: { token } });
     socketRef.current = socket;
 
     socket.on("chat:conversation_created", ({ conversationId }: { conversationId: string }) => {
@@ -101,9 +95,7 @@ export default function ChatPage() {
       setTimeout(() => sendMessage(draft, socket), 300);
     }
 
-    return () => {
-      socket.disconnect();
-    };
+    return () => { socket.disconnect(); };
   }, []);
 
   useEffect(() => {
@@ -113,12 +105,8 @@ export default function ChatPage() {
   async function openConversation(id: string) {
     setConversationId(id);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`https://worm-error-404.onrender.com/api/chat/conversations/${id}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      setMessages(data.conversation?.messages || []);
+      const res = await api.get(`/api/chat/conversations/${id}`);
+      setMessages(res.data.conversation?.messages || []);
     } catch {
       // on reste sur l'écran actuel sans planter
     }
@@ -156,9 +144,7 @@ export default function ChatPage() {
     <div className="flex h-screen bg-surface text-ink">
       <aside className="hidden w-64 flex-col border-r border-line bg-card md:flex">
         <div className="border-b border-line p-4">
-          <Link href="/" className="text-sm text-muted hover:text-ink">
-            ← retour à l'accueil
-          </Link>
+          <Link href="/" className="text-sm text-muted hover:text-ink">← retour à l'accueil</Link>
         </div>
         <button
           onClick={startNewConversation}
@@ -203,9 +189,7 @@ export default function ChatPage() {
             <div
               key={m.id}
               className={`mx-auto max-w-2xl rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                m.sender === "USER"
-                  ? "ml-auto bg-brand text-white"
-                  : "border border-line bg-card text-body"
+                m.sender === "USER" ? "ml-auto bg-brand text-white" : "border border-line bg-card text-body"
               }`}
             >
               <p className={`mb-1 text-[11px] font-medium uppercase tracking-wide ${
@@ -229,10 +213,7 @@ export default function ChatPage() {
           {files.length > 0 && (
             <div className="mx-auto mb-2 flex max-w-2xl flex-wrap gap-2">
               {files.map((f, i) => (
-                <span
-                  key={`${f.name}-${i}`}
-                  className="flex items-center gap-1.5 rounded-full bg-brand-light px-3 py-1 text-xs text-brand"
-                >
+                <span key={`${f.name}-${i}`} className="flex items-center gap-1.5 rounded-full bg-brand-light px-3 py-1 text-xs text-brand">
                   {f.name}
                   <button onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}>
                     <X size={12} />
@@ -244,23 +225,12 @@ export default function ChatPage() {
           <div className="mx-auto flex max-w-2xl items-end gap-3">
             <label className="cursor-pointer rounded-xl border border-line bg-surface p-3 text-muted hover:border-brand hover:text-brand">
               <Paperclip size={18} />
-              <input
-                type="file"
-                multiple
-                className="hidden"
-                accept="image/*,.zip,.pdf"
-                onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-              />
+              <input type="file" multiple className="hidden" accept="image/*,.zip,.pdf" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
             </label>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
               rows={1}
               placeholder=""
               className="flex-1 resize-none rounded-xl border border-line bg-surface px-4 py-3 text-sm outline-none focus:border-brand"
@@ -279,22 +249,12 @@ export default function ChatPage() {
       {limitReached && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
           <div className="w-full max-w-sm rounded-2xl border border-line bg-card p-8 text-center shadow-soft">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand">
-              Limite atteinte
-            </p>
-            <h2 className="mb-4 text-xl font-bold text-ink">
-              Vous avez utilisé vos 15 messages gratuits.
-            </h2>
-            <Link
-              href="/premium"
-              className="block rounded-full bg-brand px-6 py-3 text-sm font-medium text-white hover:bg-brand-dark"
-            >
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand">Limite atteinte</p>
+            <h2 className="mb-4 text-xl font-bold text-ink">Vous avez utilisé vos 15 messages gratuits.</h2>
+            <Link href="/premium" className="block rounded-full bg-brand px-6 py-3 text-sm font-medium text-white hover:bg-brand-dark">
               Passer au plan Pro (10 $)
             </Link>
-            <button
-              onClick={() => setLimitReached(false)}
-              className="mt-4 text-xs text-muted hover:text-ink"
-            >
+            <button onClick={() => setLimitReached(false)} className="mt-4 text-xs text-muted hover:text-ink">
               Fermer
             </button>
           </div>
