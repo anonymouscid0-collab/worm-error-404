@@ -43,19 +43,21 @@ app.use((req, res, next) => {
 app.use('/', apiRoutes);
 setupChatSocket(io);
 
-let telegramBot: any = null;
-if (process.env.TELEGRAM_BOT_TOKEN) {
+// Bot Telegram — isolé, ne crash jamais le serveur
+setTimeout(() => {
   try {
-    const WormTelegramBotV3 = require('./services/telegramBotV3');
-    telegramBot = new WormTelegramBotV3(process.env.TELEGRAM_BOT_TOKEN);
-    telegramBot.start().catch((err: any) => {
-      console.log('⚠️ Bot Telegram non démarré:', err.message);
-    });
-    console.log('🤖 Bot Telegram v3 initialisé');
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+      const WormTelegramBotV3 = require('./services/telegramBotV3');
+      const bot = new WormTelegramBotV3(process.env.TELEGRAM_BOT_TOKEN);
+      if (bot && typeof bot.start === 'function') {
+        bot.start();
+      }
+      console.log('🤖 Bot Telegram v3 initialisé');
+    }
   } catch (err: any) {
     console.log('⚠️ Bot Telegram non démarré:', err.message);
   }
-}
+}, 5000);
 
 app.get('/health', (req, res) => {
   res.json({
@@ -63,7 +65,6 @@ app.get('/health', (req, res) => {
     name: 'WORM ERROR 404',
     version: '3.1.0',
     brain: 'worm-fullstack-v3',
-    telegram: telegramBot ? 'online' : 'offline',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
@@ -76,6 +77,14 @@ app.use((req, res) => {
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('ERROR:', err);
   res.status(500).json({ error: 'Internal server error', message: err.message });
+});
+
+// Ne jamais crash sur une erreur non catchée
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason);
 });
 
 const PORT = env.port;
