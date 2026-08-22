@@ -1,7 +1,15 @@
-FROM node:22
+FROM node:20-alpine
+
 WORKDIR /app
-COPY package*.json ./
-RUN npm install
+
+COPY package.json ./
+COPY package-lock.json ./ 2>/dev/null || true
+RUN npm install --include=dev
+
 COPY . .
+
+RUN npx prisma generate && npx tsc
+
 EXPOSE 4000
-CMD ["npm", "start"]
+
+CMD ["node", "dist/index.js"]
