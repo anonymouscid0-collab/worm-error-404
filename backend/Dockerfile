@@ -2,13 +2,18 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json ./
-COPY package-lock.json ./ 2>/dev/null || true
-RUN npm install --include=dev
+# Installer toutes les dépendances (dev + prod) pour compiler
+COPY package.json package-lock.json ./
+RUN npm install
 
+# Copier le code
 COPY . .
 
+# Générer Prisma et compiler TypeScript
 RUN npx prisma generate && npx tsc
+
+# Nettoyer les devDependencies pour réduire la taille
+RUN npm prune --production
 
 EXPOSE 4000
 
