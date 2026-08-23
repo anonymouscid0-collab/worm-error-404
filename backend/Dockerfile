@@ -7,8 +7,8 @@ RUN npm install
 
 COPY . .
 
-RUN npx prisma generate
+RUN npx prisma generate && npx tsc
 
 EXPOSE 4000
 
-CMD ["npm", "start"]
+CMD ["node", "dist/index.js"]
