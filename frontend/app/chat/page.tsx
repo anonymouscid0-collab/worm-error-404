@@ -46,6 +46,9 @@ interface ChatMessage {
   sender: "USER" | "ASSISTANT";
   content: string;
   createdAt?: string;
+  isDownloadable?: boolean;
+  downloadUrl?: string | null;
+  downloadFileName?: string | null;
 }
 
 interface ConversationSummary {
@@ -738,6 +741,17 @@ export default function ChatPage() {
                   message.sender === "USER"
                 }
               />
+
+              {message.isDownloadable && message.downloadUrl && (
+                <a
+                  href={`${API_URL}${message.downloadUrl}`}
+                  download={message.downloadFileName || undefined}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-line bg-background px-3 py-2 text-xs font-medium text-body hover:bg-card"
+                >
+                  <Archive size={14} />
+                  Télécharger {message.downloadFileName || "le projet"}
+                </a>
+              )}
             </div>
           ))}
 

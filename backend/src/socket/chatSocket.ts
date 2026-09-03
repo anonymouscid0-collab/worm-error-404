@@ -67,11 +67,18 @@ export function setupChatSocket(io: Server) {
         }));
 
         // Appeler l'IA
-        const aiResult = await generateAiResponse(aiHistory);
+        const aiResult = await generateAiResponse(aiHistory, [], user.plan as 'FREE' | 'PRO');
 
         // Sauvegarder réponse IA
         const assistantMessage = await prisma.message.create({
-          data: { conversationId: convId, sender: 'ASSISTANT', content: aiResult.content },
+          data: {
+            conversationId: convId,
+            sender: 'ASSISTANT',
+            content: aiResult.content,
+            isDownloadable: aiResult.isDownloadable ?? false,
+            downloadUrl: aiResult.downloadUrl ?? null,
+            downloadFileName: aiResult.downloadFileName ?? null,
+          },
         });
 
         // Incrémenter compteur si FREE

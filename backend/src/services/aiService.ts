@@ -2,6 +2,7 @@ import { env } from "../config/env";
 import { prisma } from "../config/prisma";
 import { searchWeb, formatSearchResults } from "./searchEngine";
 import { aiOrchestrator, OrchestrationResult } from "./aiOrchestrator";
+import { generateProjectFiles } from "./projectFileGenerator";
 
 export interface AiChatMessage {
   role: "user" | "assistant" | "system";
@@ -12,6 +13,7 @@ export interface AiResponse {
   content: string;
   isDownloadable?: boolean;
   downloadFileName?: string;
+  downloadUrl?: string;
 }
 
 interface AiConfig {
@@ -41,7 +43,8 @@ function needsSearch(content: string): boolean {
 
 export async function generateAiResponse(
   history: AiChatMessage[],
-  attachments: any[] = []
+  attachments: any[] = [],
+  userPlan: "FREE" | "PRO" = "FREE"
 ): Promise<AiResponse> {
   const config = await getAiConfig();
   const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
@@ -55,6 +58,37 @@ export async function generateAiResponse(
     });
   } catch (err) {
     console.error("aiOrchestrator error:", err);
+  }
+
+  if (orchestration?.mode === "project") {
+    if (userPlan !== "PRO") {
+      return {
+        content:
+          "La génération de projet complet (fichiers réels + zip téléchargeable) est réservée au plan Pro. " +
+          "Passe en Premium pour la débloquer, ou continue en me demandant du code ciblé / des explications.",
+      };
+    }
+
+    if (config.apiKey) {
+      const projectResult = await generateProjectFiles(history, config, {
+        recommendedStack: orchestration.reasoning.recommendedStack,
+      });
+
+      if (projectResult.ok && projectResult.files) {
+        const fileList = projectResult.files.map((f) => `- ${f.path}`).join("\n");
+        return {
+          content: `Projet "${projectResult.projectName}" généré (${projectResult.files.length} fichiers) :\n${fileList}\n\nTélécharge le zip ci-dessous.`,
+          isDownloadable: true,
+          downloadFileName: projectResult.zipFileName,
+          downloadUrl: projectResult.zipUrl,
+        };
+      }
+
+      console.error("generateProjectFiles a échoué:", projectResult.error);
+      return {
+        content: `Je n'ai pas réussi à générer un projet structuré cette fois (${projectResult.error ?? "erreur inconnue"}). Reformule ta demande de façon plus précise, ou demande-moi le code d'un fichier à la fois.`,
+      };
+    }
   }
 
   let searchContext = "";

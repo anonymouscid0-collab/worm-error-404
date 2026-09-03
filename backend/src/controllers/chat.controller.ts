@@ -103,10 +103,17 @@ export async function sendMessage(req: AuthRequest, res: Response) {
     content: m.content,
   }));
 
-  const aiResult = await generateAiResponse(aiHistory, uploadedFiles);
+  const aiResult = await generateAiResponse(aiHistory, uploadedFiles, user.plan as "FREE" | "PRO");
 
   const assistantMessage = await prisma.message.create({
-    data: { conversationId, sender: "ASSISTANT", content: aiResult.content },
+    data: {
+      conversationId,
+      sender: "ASSISTANT",
+      content: aiResult.content,
+      isDownloadable: aiResult.isDownloadable ?? false,
+      downloadUrl: aiResult.downloadUrl ?? null,
+      downloadFileName: aiResult.downloadFileName ?? null,
+    },
   });
 
   if (user.plan === "FREE") {

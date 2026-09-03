@@ -12,7 +12,7 @@ export async function testAi(req: AuthRequest, res: Response) {
   const parsed = schema.safeParse(req.body);
   const message = parsed.success ? parsed.data.message : "Dis bonjour et présente-toi en une phrase.";
 
-  const result = await generateAiResponse([{ role: "user", content: message }]);
+  const result = await generateAiResponse([{ role: "user", content: message }], [], "PRO");
   return res.json({ response: result.content });
 }
 
