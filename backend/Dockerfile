@@ -6,4 +6,4 @@ COPY dist ./dist
 COPY prisma ./prisma
 RUN npx prisma generate
 EXPOSE 4000
-CMD ["node", "dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
