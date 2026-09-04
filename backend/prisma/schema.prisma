@@ -58,6 +58,19 @@ model Message {
   @@map("messages")
 }
 
+model KnowledgeEntry {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  tags      String[]
+  source    String?
+  language  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("knowledge_entries")
+}
+
 model Attachment {
   id        String   @id @default(uuid())
   messageId String

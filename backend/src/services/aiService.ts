@@ -3,6 +3,7 @@ import { prisma } from "../config/prisma";
 import { searchWeb, formatSearchResults } from "./searchEngine";
 import { aiOrchestrator, OrchestrationResult } from "./aiOrchestrator";
 import { generateProjectFiles } from "./projectFileGenerator";
+import { searchKnowledge, addKnowledge } from "./v4/knowledgeEngine";
 
 export interface AiChatMessage {
   role: "user" | "assistant" | "system";
@@ -93,9 +94,30 @@ export async function generateAiResponse(
 
   let searchContext = "";
   if (needsSearch(text)) {
-    const results = await searchWeb(text, 3);
-    if (results.length > 0) {
-      searchContext = formatSearchResults(results);
+    try {
+      const cached = await searchKnowledge(text, 3);
+      if (cached.length > 0) {
+        searchContext = cached
+          .map((e) => `[Connaissance déjà acquise : ${e.title}]\n${e.content}`)
+          .join("\n\n");
+      } else {
+        const results = await searchWeb(text, 3);
+        if (results.length > 0) {
+          searchContext = formatSearchResults(results);
+          addKnowledge({
+            title: text.slice(0, 120),
+            content: searchContext,
+            tags: orchestration?.reasoning.recommendedStack ?? [],
+            source: "web-search",
+          }).catch((err) => console.error("addKnowledge error:", err));
+        }
+      }
+    } catch (err) {
+      console.error("knowledgeEngine error:", err);
+      const results = await searchWeb(text, 3);
+      if (results.length > 0) {
+        searchContext = formatSearchResults(results);
+      }
     }
   }
 
