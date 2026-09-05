@@ -2,6 +2,7 @@ import { memoryEngine } from "./memoryEngine";
 
 export interface ContextInput {
   prompt: string;
+  userId?: string;
   history?: Array<{
     role: "user" | "assistant" | "system";
     content: string;
@@ -22,21 +23,15 @@ export interface AIContext {
 }
 
 export class ContextEngine {
-  build(input: ContextInput): AIContext {
-    const memories = memoryEngine.search(input.prompt, 5);
+  async build(input: ContextInput): Promise<AIContext> {
+    const memories = await memoryEngine.search(input.userId, input.prompt, 5);
 
     const projectContext = input.project
       ? [
           `Projet: ${input.project.name}`,
-          input.project.description
-            ? `Description: ${input.project.description}`
-            : "",
-          input.project.stack?.length
-            ? `Stack: ${input.project.stack.join(", ")}`
-            : "",
-          input.project.files?.length
-            ? `Fichiers: ${input.project.files.join(", ")}`
-            : ""
+          input.project.description ? `Description: ${input.project.description}` : "",
+          input.project.stack?.length ? `Stack: ${input.project.stack.join(", ")}` : "",
+          input.project.files?.length ? `Fichiers: ${input.project.files.join(", ")}` : ""
         ]
           .filter(Boolean)
           .join("\n")

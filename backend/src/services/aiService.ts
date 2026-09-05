@@ -6,6 +6,7 @@ import { generateProjectFiles } from "./projectFileGenerator";
 import { searchKnowledge, addKnowledge } from "./v4/knowledgeEngine";
 import { analyzeGithubRepo } from "./repoAnalyzer";
 import { verifyAndFixResponse } from "./codeVerification";
+import { memoryEngine } from "./memoryEngine";
 
 export interface AiChatMessage {
   role: "user" | "assistant" | "system";
@@ -78,7 +79,8 @@ async function callModel(messages: AiChatMessage[], config: AiConfig): Promise<A
 export async function generateAiResponse(
   history: AiChatMessage[],
   attachments: any[] = [],
-  userPlan: "FREE" | "PRO" = "FREE"
+  userPlan: "FREE" | "PRO" = "FREE",
+  userId?: string
 ): Promise<AiResponse> {
   const config = await getAiConfig();
   const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
@@ -88,10 +90,17 @@ export async function generateAiResponse(
   try {
     orchestration = await aiOrchestrator.analyze({
       prompt: text,
+      userId,
       history: history.map((m) => ({ role: m.role, content: m.content })),
     });
   } catch (err) {
     console.error("aiOrchestrator error:", err);
+  }
+
+  if (userId && text) {
+    memoryEngine.extractAndRemember(userId, text).catch((err) =>
+      console.error("extractAndRemember error:", err)
+    );
   }
 
   // Lien GitHub détecté : signal explicite fort, prioritaire sur le reste.
@@ -202,6 +211,9 @@ export async function generateAiResponse(
     }
     if (reasoning.risks.length) {
       systemContent += `\nRisques/points d'attention : ${reasoning.risks.join(", ")}`;
+    }
+    if (orchestration.context.memories && orchestration.context.memories !== "Aucune mémoire pertinente.") {
+      systemContent += `\n\nCe que tu sais déjà sur cet utilisateur :\n${orchestration.context.memories}`;
     }
   }
 

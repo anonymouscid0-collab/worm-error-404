@@ -8,7 +8,7 @@ export interface OrchestrationResult {
   mode: "conversation" | "code" | "project" | "analysis";
   reasoning: ReturnType<typeof reasoningEngine.analyze>;
   plan?: ReturnType<typeof taskPlanner.createPlan>;
-  context: ReturnType<typeof contextEngine.build>;
+  context: Awaited<ReturnType<typeof contextEngine.build>>;
   project?: AIProject;
   validation?: ReturnType<typeof codeValidator.validateProject>;
 }
@@ -21,7 +21,7 @@ export class AIOrchestrator {
       throw new Error("Prompt vide.");
     }
 
-    const context = contextEngine.build(input);
+    const context = await contextEngine.build(input);
     const reasoning = reasoningEngine.analyze(prompt);
 
     const lower = prompt.toLowerCase();

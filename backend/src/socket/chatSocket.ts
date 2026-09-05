@@ -67,7 +67,7 @@ export function setupChatSocket(io: Server) {
         }));
 
         // Appeler l'IA
-        const aiResult = await generateAiResponse(aiHistory, [], user.plan as 'FREE' | 'PRO');
+        const aiResult = await generateAiResponse(aiHistory, [], user.plan as 'FREE' | 'PRO', user.id);
 
         // Sauvegarder réponse IA
         const assistantMessage = await prisma.message.create({

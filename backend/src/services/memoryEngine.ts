@@ -1,85 +1,61 @@
+import { prisma } from "../config/prisma";
+
+export type MemoryScope = "fact" | "preference" | "project" | "conversation" | "decision" | "technical";
+
 export interface MemoryItem {
   id: string;
-  type: "conversation" | "project" | "decision" | "fact" | "technical";
   content: string;
-  importance: number;
-  createdAt: string;
-  updatedAt: string;
+  scope: string;
 }
 
+const FACT_PATTERNS: { regex: RegExp; scope: MemoryScope }[] = [
+  { regex: /je m'appelle ([a-zà-ÿ0-9 _-]{2,40})/i, scope: "fact" },
+  { regex: /mon (?:projet|app|application) s'appelle ([a-zà-ÿ0-9 _-]{2,60})/i, scope: "project" },
+  { regex: /j'utilise ([a-zà-ÿ0-9 .+#_-]{2,60})/i, scope: "technical" },
+  { regex: /je pr[ée]f[èe]re ([a-zà-ÿ0-9 .+#_-]{2,80})/i, scope: "preference" },
+  { regex: /je travaille (?:sur|avec) ([a-zà-ÿ0-9 .+#_-]{2,80})/i, scope: "project" },
+];
+
 export class MemoryEngine {
-  private readonly memories = new Map<string, MemoryItem>();
-
-  remember(
-    content: string,
-    type: MemoryItem["type"] = "conversation",
-    importance = 5
-  ): MemoryItem {
-    const now = new Date().toISOString();
-
-    const item: MemoryItem = {
-      id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-      type,
-      content: content.trim(),
-      importance: Math.max(1, Math.min(10, importance)),
-      createdAt: now,
-      updatedAt: now
-    };
-
-    this.memories.set(item.id, item);
-
-    return item;
-  }
-
-  search(query: string, limit = 10): MemoryItem[] {
-    const words = query
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean);
-
-    return [...this.memories.values()]
-      .map((memory) => {
-        const content = memory.content.toLowerCase();
-
-        const matches = words.reduce(
-          (score, word) => score + (content.includes(word) ? 1 : 0),
-          0
-        );
-
-        return {
-          memory,
-          score: matches * 10 + memory.importance
-        };
-      })
-      .filter((item) => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .map((item) => item.memory);
-  }
-
-  get(id: string): MemoryItem | undefined {
-    return this.memories.get(id);
-  }
-
-  forget(id: string): boolean {
-    return this.memories.delete(id);
-  }
-
-  clear(): void {
-    this.memories.clear();
-  }
-
-  getStats() {
-    const byType: Record<string, number> = {};
-
-    for (const memory of this.memories.values()) {
-      byType[memory.type] = (byType[memory.type] || 0) + 1;
+  async remember(userId: string, content: string, scope: MemoryScope = "conversation", key?: string) {
+    if (key) {
+      const existing = await prisma.memory.findFirst({ where: { userId, scope, key } });
+      if (existing) {
+        return prisma.memory.update({ where: { id: existing.id }, data: { content } });
+      }
     }
+    return prisma.memory.create({ data: { userId, scope, key, content } });
+  }
 
-    return {
-      total: this.memories.size,
-      byType
-    };
+  async extractAndRemember(userId: string, message: string): Promise<void> {
+    for (const { regex, scope } of FACT_PATTERNS) {
+      const match = message.match(regex);
+      if (match) {
+        const value = match[1].trim();
+        await this.remember(userId, `${scope}: ${value}`, scope, scope).catch((err) =>
+          console.error("memoryEngine.extractAndRemember error:", err)
+        );
+      }
+    }
+  }
+
+  async search(userId: string | undefined, _query: string, limit = 5): Promise<MemoryItem[]> {
+    if (!userId) return [];
+    try {
+      const rows = await prisma.memory.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        take: limit,
+      });
+      return rows.map((r) => ({ id: r.id, content: r.content, scope: r.scope }));
+    } catch (err) {
+      console.error("memoryEngine.search error:", err);
+      return [];
+    }
+  }
+
+  async forget(userId: string, memoryId: string) {
+    return prisma.memory.deleteMany({ where: { id: memoryId, userId } });
   }
 }
 

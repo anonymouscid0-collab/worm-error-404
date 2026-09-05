@@ -103,7 +103,7 @@ export async function sendMessage(req: AuthRequest, res: Response) {
     content: m.content,
   }));
 
-  const aiResult = await generateAiResponse(aiHistory, uploadedFiles, user.plan as "FREE" | "PRO");
+  const aiResult = await generateAiResponse(aiHistory, uploadedFiles, user.plan as "FREE" | "PRO", user.id);
 
   const assistantMessage = await prisma.message.create({
     data: {
