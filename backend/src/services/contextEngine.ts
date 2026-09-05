@@ -3,6 +3,8 @@ import { memoryEngine } from "./memoryEngine";
 export interface ContextInput {
   prompt: string;
   userId?: string;
+  aiConfig?: { apiKey: string; apiUrl: string };
+  model?: string;
   history?: Array<{
     role: "user" | "assistant" | "system";
     content: string;

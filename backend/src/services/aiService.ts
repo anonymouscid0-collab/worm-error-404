@@ -91,6 +91,8 @@ export async function generateAiResponse(
     orchestration = await aiOrchestrator.analyze({
       prompt: text,
       userId,
+      aiConfig: { apiKey: config.apiKey, apiUrl: config.apiUrl },
+      model: env.aiModel || "openrouter/free",
       history: history.map((m) => ({ role: m.role, content: m.content })),
     });
   } catch (err) {

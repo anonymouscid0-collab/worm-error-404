@@ -6,7 +6,7 @@ import { codeValidator } from "./codeValidator";
 
 export interface OrchestrationResult {
   mode: "conversation" | "code" | "project" | "analysis";
-  reasoning: ReturnType<typeof reasoningEngine.analyze>;
+  reasoning: Awaited<ReturnType<typeof reasoningEngine.analyze>>;
   plan?: ReturnType<typeof taskPlanner.createPlan>;
   context: Awaited<ReturnType<typeof contextEngine.build>>;
   project?: AIProject;
@@ -22,7 +22,7 @@ export class AIOrchestrator {
     }
 
     const context = await contextEngine.build(input);
-    const reasoning = reasoningEngine.analyze(prompt);
+    const reasoning = await reasoningEngine.analyze(prompt, input.aiConfig, input.model);
 
     const lower = prompt.toLowerCase();
 
