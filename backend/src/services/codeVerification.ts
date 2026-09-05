@@ -1,4 +1,4 @@
-import { codeAnalyzer, CodeIssue } from "./codeAnalyzer";
+import { codeAnalyzer, aiReview, CodeIssue } from "./codeAnalyzer";
 
 interface Msg {
   role: "user" | "assistant" | "system";
@@ -58,12 +58,21 @@ export async function verifyAndFixResponse(
   }
 
   const allIssues: { block: number; lang: string; issue: CodeIssue }[] = [];
-  blocks.forEach((b, i) => {
+
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
     const analysis = codeAnalyzer.analyze(b.code, b.lang);
     analysis.issues
       .filter((issue) => issue.severity === "error")
       .forEach((issue) => allIssues.push({ block: i + 1, lang: b.lang, issue }));
-  });
+
+    if (config.apiKey) {
+      const reviewIssues = await aiReview(b.code, b.lang, config, model);
+      reviewIssues
+        .filter((issue) => issue.severity === "error" || issue.severity === "warning")
+        .forEach((issue) => allIssues.push({ block: i + 1, lang: b.lang, issue }));
+    }
+  }
 
   if (allIssues.length === 0) {
     return { content, issuesFound: 0, issuesFixed: false };

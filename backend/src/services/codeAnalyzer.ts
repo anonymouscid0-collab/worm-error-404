@@ -117,3 +117,69 @@ export class CodeAnalyzer {
 }
 
 export const codeAnalyzer = new CodeAnalyzer();
+
+interface ModelConfig {
+  apiKey: string;
+  apiUrl: string;
+}
+
+export async function aiReview(
+  code: string,
+  language: string,
+  config: ModelConfig,
+  model: string
+): Promise<CodeIssue[]> {
+  try {
+    const response = await fetch(config.apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+        "HTTP-Referer": "https://worm-error-404.onrender.com",
+        "X-Title": "WORM ERROR 404 - Code Review",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Tu es un reviewer de code senior. Analyse le code fourni et détecte les vrais problèmes : bugs " +
+              "logiques, erreurs de gestion d'exceptions, cas limites non gérés, incohérences de types, mauvaises " +
+              "pratiques, problèmes de performance évidents. Ignore le style pur (formatage, nommage mineur). " +
+              'Réponds UNIQUEMENT avec un tableau JSON valide, sans texte autour, au format : ' +
+              '[{"severity": "error"|"warning"|"info", "category": "syntax"|"security"|"quality"|"architecture"|"dependency", "message": string, "line": number|null, "suggestion": string}]. ' +
+              "Si le code est correct, réponds avec un tableau vide [].",
+          },
+          { role: "user", content: `Langage: ${language}\n\nCode à analyser :\n${code}` },
+        ],
+        temperature: 0.2,
+        max_tokens: 800,
+      }),
+    });
+
+    if (!response.ok) return [];
+
+    const data: any = await response.json();
+    const raw: string = data?.choices?.[0]?.message?.content ?? "";
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return [];
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((i: any) => i && typeof i.message === "string")
+      .map((i: any): CodeIssue => ({
+        severity: ["error", "warning", "info"].includes(i.severity) ? i.severity : "info",
+        category: ["syntax", "security", "quality", "architecture", "dependency"].includes(i.category) ? i.category : "quality",
+        message: String(i.message),
+        line: typeof i.line === "number" ? i.line : undefined,
+        suggestion: typeof i.suggestion === "string" ? i.suggestion : undefined,
+      }));
+  } catch (err) {
+    console.error("codeAnalyzer.aiReview error:", err);
+    return [];
+  }
+}
+
