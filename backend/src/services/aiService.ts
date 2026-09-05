@@ -5,6 +5,7 @@ import { aiOrchestrator, OrchestrationResult } from "./aiOrchestrator";
 import { generateProjectFiles } from "./projectFileGenerator";
 import { searchKnowledge, addKnowledge } from "./v4/knowledgeEngine";
 import { analyzeGithubRepo } from "./repoAnalyzer";
+import { verifyAndFixResponse } from "./codeVerification";
 
 export interface AiChatMessage {
   role: "user" | "assistant" | "system";
@@ -212,7 +213,18 @@ export async function generateAiResponse(
     ? [{ role: "system", content: systemContent }, ...history]
     : history;
 
-  return callModel(messages, config);
+  const result = await callModel(messages, config);
+
+  const verification = await verifyAndFixResponse(result.content, config, env.aiModel || "openrouter/free");
+  if (verification.issuesFound > 0) {
+    result.content =
+      verification.content +
+      (verification.issuesFixed
+        ? `\n\n✅ Vérification automatique : ${verification.issuesFound} problème(s) détecté(s) et corrigé(s).`
+        : `\n\n⚠️ Vérification automatique : ${verification.issuesFound} problème(s) potentiel(s) détecté(s), relis le code avant de l'utiliser.`);
+  }
+
+  return result;
 }
 
 function stubResponse(
