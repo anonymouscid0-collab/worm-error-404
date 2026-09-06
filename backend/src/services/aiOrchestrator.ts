@@ -22,7 +22,7 @@ export class AIOrchestrator {
     }
 
     const context = await contextEngine.build(input);
-    const reasoning = await reasoningEngine.analyze(prompt, input.aiConfig, input.model);
+    const reasoning = await reasoningEngine.analyze(prompt, input.providers);
 
     const lower = prompt.toLowerCase();
 

@@ -118,29 +118,16 @@ export class CodeAnalyzer {
 
 export const codeAnalyzer = new CodeAnalyzer();
 
-interface ModelConfig {
-  apiKey: string;
-  apiUrl: string;
-}
+import { callWithFallback, ProviderKey } from "./providerManager";
 
 export async function aiReview(
   code: string,
   language: string,
-  config: ModelConfig,
-  model: string
+  providers: ProviderKey[]
 ): Promise<CodeIssue[]> {
   try {
-    const response = await fetch(config.apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
-        "HTTP-Referer": "https://worm-error-404.onrender.com",
-        "X-Title": "WORM ERROR 404 - Code Review",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
+    const result = await callWithFallback(
+      [
           {
             role: "system",
             content:
@@ -152,17 +139,14 @@ export async function aiReview(
               "Si le code est correct, réponds avec un tableau vide [].",
           },
           { role: "user", content: `Langage: ${language}\n\nCode à analyser :\n${code}` },
-        ],
-        temperature: 0.2,
-        max_tokens: 800,
-      }),
-    });
+      ],
+      providers,
+      { maxTokens: 800, temperature: 0.2 }
+    );
 
-    if (!response.ok) return [];
+    if (!result.ok || !result.content) return [];
 
-    const data: any = await response.json();
-    const raw: string = data?.choices?.[0]?.message?.content ?? "";
-    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    const jsonMatch = result.content.match(/\[[\s\S]*\]/);
     if (!jsonMatch) return [];
 
     const parsed = JSON.parse(jsonMatch[0]);

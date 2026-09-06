@@ -152,6 +152,8 @@ model ApiKey {
   provider  String
   label     String
   keyValue  String
+  apiUrl    String?
+  model     String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 

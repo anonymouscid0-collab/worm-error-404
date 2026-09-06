@@ -1,14 +1,5 @@
 import { codeAnalyzer, aiReview, CodeIssue } from "./codeAnalyzer";
-
-interface Msg {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-
-interface ModelConfig {
-  apiKey: string;
-  apiUrl: string;
-}
+import { callWithFallback, ProviderKey } from "./providerManager";
 
 interface CodeBlock {
   lang: string;
@@ -25,22 +16,6 @@ function extractCodeBlocks(text: string): CodeBlock[] {
   return blocks;
 }
 
-async function callModelRaw(messages: Msg[], config: ModelConfig, model: string): Promise<string> {
-  const response = await fetch(config.apiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
-      "HTTP-Referer": "https://worm-error-404.onrender.com",
-      "X-Title": "WORM ERROR 404 - Auto-vérification",
-    },
-    body: JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 4000 }),
-  });
-  if (!response.ok) throw new Error(`Erreur API (${response.status})`);
-  const data: any = await response.json();
-  return data?.choices?.[0]?.message?.content ?? "";
-}
-
 export interface VerificationOutcome {
   content: string;
   issuesFound: number;
@@ -49,8 +24,7 @@ export interface VerificationOutcome {
 
 export async function verifyAndFixResponse(
   content: string,
-  config: ModelConfig,
-  model: string
+  providers: ProviderKey[]
 ): Promise<VerificationOutcome> {
   const blocks = extractCodeBlocks(content);
   if (blocks.length === 0) {
@@ -66,8 +40,8 @@ export async function verifyAndFixResponse(
       .filter((issue) => issue.severity === "error")
       .forEach((issue) => allIssues.push({ block: i + 1, lang: b.lang, issue }));
 
-    if (config.apiKey) {
-      const reviewIssues = await aiReview(b.code, b.lang, config, model);
+    if (providers.length > 0) {
+      const reviewIssues = await aiReview(b.code, b.lang, providers);
       reviewIssues
         .filter((issue) => issue.severity === "error" || issue.severity === "warning")
         .forEach((issue) => allIssues.push({ block: i + 1, lang: b.lang, issue }));
@@ -83,7 +57,7 @@ export async function verifyAndFixResponse(
     .join("\n");
 
   try {
-    const fixed = await callModelRaw(
+    const result = await callWithFallback(
       [
         {
           role: "system",
@@ -98,13 +72,15 @@ export async function verifyAndFixResponse(
           content: `Problèmes détectés par l'analyse automatique :\n${issuesReport}\n\nRenvoie la version corrigée complète.`,
         },
       ],
-      config,
-      model
+      providers,
+      { maxTokens: 4000, temperature: 0.3 }
     );
 
-    if (!fixed.trim()) {
+    if (!result.ok || !result.content?.trim()) {
       return { content, issuesFound: allIssues.length, issuesFixed: false };
     }
+
+    const fixed = result.content;
 
     const fixedBlocks = extractCodeBlocks(fixed);
     const stillHasErrors = fixedBlocks.some((b) =>

@@ -2,11 +2,7 @@ import JSZip from "jszip";
 import fs from "fs";
 import path from "path";
 import { AiChatMessage } from "./aiService";
-
-interface GenConfig {
-  apiKey: string;
-  apiUrl: string;
-}
+import { callWithFallback, ProviderKey } from "./providerManager";
 
 export interface GeneratedFile {
   path: string;
@@ -27,7 +23,7 @@ const MAX_TOTAL_CHARS = 400_000;
 
 export async function generateProjectFiles(
   history: AiChatMessage[],
-  config: GenConfig,
+  providers: ProviderKey[],
   reasoning: { recommendedStack: string[] }
 ): Promise<ProjectGenerationResult> {
   const instruction = `Tu dois générer un projet complet basé sur la demande de l'utilisateur.
@@ -45,33 +41,13 @@ Contraintes :
     ...history,
   ];
 
-  let response: Response;
-  try {
-    response = await fetch(config.apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
-        "HTTP-Referer": "https://worm-error-404.onrender.com",
-        "X-Title": "WORM ERROR 404",
-      },
-      body: JSON.stringify({
-        model: process.env.AI_MODEL || "mistralai/mixtral-8x22b-instruct",
-        messages,
-        temperature: 0.4,
-        max_tokens: 8000,
-      }),
-    });
-  } catch (err) {
-    return { ok: false, error: `Impossible de contacter l'API : ${(err as Error).message}` };
+  const result = await callWithFallback(messages, providers, { maxTokens: 8000, temperature: 0.4 });
+
+  if (!result.ok || !result.content) {
+    return { ok: false, error: result.error || "Réponse vide de tous les fournisseurs." };
   }
 
-  if (!response.ok) {
-    return { ok: false, error: `Erreur API (${response.status})` };
-  }
-
-  const data: any = await response.json();
-  const raw: string = data?.choices?.[0]?.message?.content ?? "";
+  const raw: string = result.content;
 
   const jsonText = extractJson(raw);
   if (!jsonText) {

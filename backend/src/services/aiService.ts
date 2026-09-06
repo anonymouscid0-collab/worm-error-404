@@ -7,6 +7,7 @@ import { searchKnowledge, addKnowledge } from "./v4/knowledgeEngine";
 import { analyzeGithubRepo } from "./repoAnalyzer";
 import { verifyAndFixResponse } from "./codeVerification";
 import { memoryEngine } from "./memoryEngine";
+import { callWithFallback, ProviderKey } from "./providerManager";
 
 export interface AiChatMessage {
   role: "user" | "assistant" | "system";
@@ -20,22 +21,35 @@ export interface AiResponse {
   downloadUrl?: string;
 }
 
-interface AiConfig {
-  apiKey: string;
-  apiUrl: string;
+export interface AiConfig {
+  providers: ProviderKey[];
   systemPrompt: string;
 }
 
 export async function getAiConfig(): Promise<AiConfig> {
-  const [activeKey, promptSetting, urlSetting] = await Promise.all([
-    prisma.apiKey.findFirst({ where: { isActive: true }, orderBy: { createdAt: "desc" } }),
+  const [activeKeys, promptSetting] = await Promise.all([
+    prisma.apiKey.findMany({ where: { isActive: true }, orderBy: { createdAt: "asc" } }),
     prisma.siteSetting.findUnique({ where: { key: "ai_system_prompt" } }),
-    prisma.siteSetting.findUnique({ where: { key: "ai_api_url" } }),
   ]);
 
+  const providers: ProviderKey[] = activeKeys.map((k) => ({
+    provider: k.provider,
+    apiKey: k.keyValue,
+    apiUrl: k.apiUrl || undefined,
+    model: k.model || undefined,
+  }));
+
+  if (providers.length === 0 && env.aiApiKey) {
+    providers.push({
+      provider: "openrouter",
+      apiKey: env.aiApiKey,
+      apiUrl: env.aiApiUrl || undefined,
+      model: env.aiModel || undefined,
+    });
+  }
+
   return {
-    apiKey: activeKey?.keyValue || env.aiApiKey,
-    apiUrl: urlSetting?.value || env.aiApiUrl || "https://openrouter.ai/api/v1/chat/completions",
+    providers,
     systemPrompt: promptSetting?.value || env.aiSystemPrompt,
   };
 }
@@ -46,34 +60,11 @@ function needsSearch(content: string): boolean {
 }
 
 async function callModel(messages: AiChatMessage[], config: AiConfig): Promise<AiResponse> {
-  try {
-    const response = await fetch(config.apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${config.apiKey}`,
-        "HTTP-Referer": "https://worm-error-404.onrender.com",
-        "X-Title": "WORM ERROR 404"
-      },
-      body: JSON.stringify({
-        model: env.aiModel || "openrouter/free",
-        messages,
-        temperature: 0.7,
-        max_tokens: 4000
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      return { content: `Erreur API (${response.status}) : ${errorText.slice(0, 300)}` };
-    }
-
-    const data: any = await response.json();
-    const content = data?.choices?.[0]?.message?.content ?? data?.content ?? JSON.stringify(data);
-    return { content };
-  } catch (err) {
-    return { content: `Impossible de contacter l'API : ${(err as Error).message}` };
+  const result = await callWithFallback(messages, config.providers, { maxTokens: 4000, temperature: 0.7 });
+  if (!result.ok) {
+    return { content: `Erreur API (tous les fournisseurs configurés ont échoué) : ${result.error}` };
   }
+  return { content: result.content! };
 }
 
 export async function generateAiResponse(
@@ -91,8 +82,7 @@ export async function generateAiResponse(
     orchestration = await aiOrchestrator.analyze({
       prompt: text,
       userId,
-      aiConfig: { apiKey: config.apiKey, apiUrl: config.apiUrl },
-      model: env.aiModel || "openrouter/free",
+      providers: config.providers,
       history: history.map((m) => ({ role: m.role, content: m.content })),
     });
   } catch (err) {
@@ -107,7 +97,7 @@ export async function generateAiResponse(
 
   // Lien GitHub détecté : signal explicite fort, prioritaire sur le reste.
   if (/github\.com\/[\w.-]+\/[\w.-]+/i.test(text)) {
-    if (!config.apiKey) {
+    if (config.providers.length === 0) {
       return stubResponse(history, attachments);
     }
 
@@ -142,8 +132,8 @@ export async function generateAiResponse(
       };
     }
 
-    if (config.apiKey) {
-      const projectResult = await generateProjectFiles(history, config, {
+    if (config.providers.length > 0) {
+      const projectResult = await generateProjectFiles(history, config.providers, {
         recommendedStack: orchestration.reasoning.recommendedStack,
       });
 
@@ -193,7 +183,7 @@ export async function generateAiResponse(
     }
   }
 
-  if (!config.apiKey) {
+  if (config.providers.length === 0) {
     return stubResponse(history, attachments, searchContext);
   }
 
@@ -229,7 +219,7 @@ export async function generateAiResponse(
 
   const result = await callModel(messages, config);
 
-  const verification = await verifyAndFixResponse(result.content, config, env.aiModel || "openrouter/free");
+  const verification = await verifyAndFixResponse(result.content, config.providers);
   if (verification.issuesFound > 0) {
     result.content =
       verification.content +

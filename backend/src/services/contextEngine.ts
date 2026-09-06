@@ -1,10 +1,10 @@
 import { memoryEngine } from "./memoryEngine";
+import { ProviderKey } from "./providerManager";
 
 export interface ContextInput {
   prompt: string;
   userId?: string;
-  aiConfig?: { apiKey: string; apiUrl: string };
-  model?: string;
+  providers?: ProviderKey[];
   history?: Array<{
     role: "user" | "assistant" | "system";
     content: string;

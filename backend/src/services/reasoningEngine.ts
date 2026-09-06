@@ -1,3 +1,5 @@
+import { callWithFallback, ProviderKey } from "./providerManager";
+
 export type ReasoningComplexity = "low" | "medium" | "high";
 
 export interface ReasoningResult {
@@ -8,11 +10,6 @@ export interface ReasoningResult {
   architecture: string[];
   recommendedStack: string[];
   complexity: ReasoningComplexity;
-}
-
-interface ModelConfig {
-  apiKey: string;
-  apiUrl: string;
 }
 
 function heuristicAnalyze(prompt: string): ReasoningResult {
@@ -73,39 +70,27 @@ function heuristicAnalyze(prompt: string): ReasoningResult {
   };
 }
 
-async function aiAnalyze(prompt: string, config: ModelConfig, model: string): Promise<ReasoningResult | null> {
+async function aiAnalyze(prompt: string, providers: ProviderKey[]): Promise<ReasoningResult | null> {
   try {
-    const response = await fetch(config.apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
-        "HTTP-Referer": "https://worm-error-404.onrender.com",
-        "X-Title": "WORM ERROR 404 - Reasoning",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Tu es un moteur de raisonnement technique. Analyse la demande et réponds UNIQUEMENT avec un objet JSON valide, " +
-              'sans texte avant ni après, sans markdown, au format exact : {"objective": string, "assumptions": string[], ' +
-              '"constraints": string[], "risks": string[], "architecture": string[], "recommendedStack": string[], ' +
-              '"complexity": "low"|"medium"|"high"}',
-          },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.2,
-        max_tokens: 600,
-      }),
-    });
+    const result = await callWithFallback(
+      [
+        {
+          role: "system",
+          content:
+            "Tu es un moteur de raisonnement technique. Analyse la demande et réponds UNIQUEMENT avec un objet JSON valide, " +
+            'sans texte avant ni après, sans markdown, au format exact : {"objective": string, "assumptions": string[], ' +
+            '"constraints": string[], "risks": string[], "architecture": string[], "recommendedStack": string[], ' +
+            '"complexity": "low"|"medium"|"high"}',
+        },
+        { role: "user", content: prompt },
+      ],
+      providers,
+      { maxTokens: 600, temperature: 0.2 }
+    );
 
-    if (!response.ok) return null;
+    if (!result.ok || !result.content) return null;
 
-    const data: any = await response.json();
-    const raw: string = data?.choices?.[0]?.message?.content ?? "";
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
 
     const parsed = JSON.parse(jsonMatch[0]);
@@ -127,14 +112,14 @@ async function aiAnalyze(prompt: string, config: ModelConfig, model: string): Pr
 }
 
 export class ReasoningEngine {
-  async analyze(prompt: string, config?: ModelConfig, model?: string): Promise<ReasoningResult> {
+  async analyze(prompt: string, providers?: ProviderKey[]): Promise<ReasoningResult> {
     const text = prompt.trim();
     if (!text) {
       throw new Error("Impossible d'analyser une demande vide.");
     }
 
-    if (config?.apiKey) {
-      const aiResult = await aiAnalyze(text, config, model || "openrouter/free");
+    if (providers && providers.length > 0) {
+      const aiResult = await aiAnalyze(text, providers);
       if (aiResult) return aiResult;
     }
 
