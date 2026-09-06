@@ -133,14 +133,25 @@ export async function generateAiResponse(
     }
 
     if (config.providers.length > 0) {
-      const projectResult = await generateProjectFiles(history, config.providers, {
-        recommendedStack: orchestration.reasoning.recommendedStack,
-      });
+      const projectResult = await generateProjectFiles(
+        history,
+        config.providers,
+        { recommendedStack: orchestration.reasoning.recommendedStack },
+        userId
+      );
 
       if (projectResult.ok && projectResult.files) {
         const fileList = projectResult.files.map((f) => `- ${f.path}`).join("\n");
+        const versionNote = projectResult.version && projectResult.version > 1
+          ? `\n\n📦 Version ${projectResult.version} de "${projectResult.projectName}" (les versions précédentes restent disponibles dans ton historique).`
+          : "";
+        const ciNote = projectResult.ciType
+          ? `\n\n📱 Un fichier de build automatique GitHub Actions a été ajouté (\`.github/workflows/\`). Pousse ce projet sur GitHub : un vrai APK Android sera compilé automatiquement` +
+            (projectResult.ciType === "flutter" ? ` (et un build iOS non signé)` : ``) +
+            `, téléchargeable dans l'onglet "Actions" de ton dépôt.`
+          : "";
         return {
-          content: `Projet "${projectResult.projectName}" généré (${projectResult.files.length} fichiers) :\n${fileList}\n\nTélécharge le zip ci-dessous.`,
+          content: `Projet "${projectResult.projectName}" généré (${projectResult.files.length} fichiers) :\n${fileList}${versionNote}${ciNote}\n\nTélécharge le zip ci-dessous.`,
           isDownloadable: true,
           downloadFileName: projectResult.zipFileName,
           downloadUrl: projectResult.zipUrl,

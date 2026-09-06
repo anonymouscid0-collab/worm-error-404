@@ -59,6 +59,19 @@ model Message {
   @@map("messages")
 }
 
+model ProjectVersion {
+  id          String   @id @default(uuid())
+  userId      String
+  projectName String
+  version     Int
+  fileCount   Int
+  zipUrl      String
+  createdAt   DateTime @default(now())
+
+  @@index([userId, projectName])
+  @@map("project_versions")
+}
+
 model Memory {
   id        String   @id @default(uuid())
   userId    String
