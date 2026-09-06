@@ -6,6 +6,7 @@ import * as accessController from '../controllers/accessCode.controller';
 import * as chatController from '../controllers/chat.controller';
 import * as adminController from '../controllers/admin.controller';
 import * as premiumController from '../controllers/premium.controller';
+import * as projectController from '../controllers/project.controller';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { enforceMessageLimit } from '../middleware/messageLimit';
 
@@ -182,5 +183,11 @@ router.post(
   requireAdmin,
   adminController.testAi
 );
+
+
+// ========== PROJECT WORKSPACE (accès restreint au propriétaire) ==========
+router.get('/api/projects', requireAuth, projectController.listProjects);
+router.get('/api/projects/:id', requireAuth, projectController.getProjectVersion);
+router.get('/api/projects/:id/download', requireAuth, projectController.downloadProjectZip);
 
 export default router;

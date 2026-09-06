@@ -17,6 +17,7 @@ export interface ProjectGenerationResult {
   zipUrl?: string;
   zipFileName?: string;
   version?: number;
+  versionId?: string;
   ciType?: "flutter" | "android-native" | null;
   error?: string;
 }
@@ -184,6 +185,7 @@ Contraintes :
   const zipUrl = `/uploads/projects/${zipFileName}`;
 
   let version = 1;
+  let versionId: string | undefined;
   if (userId) {
     try {
       const previous = await prisma.projectVersion.findFirst({
@@ -191,15 +193,16 @@ Contraintes :
         orderBy: { version: "desc" },
       });
       version = (previous?.version || 0) + 1;
-      await prisma.projectVersion.create({
-        data: { userId, projectName, version, fileCount: files.length, zipUrl },
+      const created = await prisma.projectVersion.create({
+        data: { userId, projectName, version, fileCount: files.length, zipUrl, files: files as any },
       });
+      versionId = created.id;
     } catch (err) {
       console.error("ProjectVersion tracking error:", err);
     }
   }
 
-  return { ok: true, projectName, files, zipUrl, zipFileName, version, ciType };
+  return { ok: true, projectName, files, zipUrl, zipFileName, version, versionId, ciType };
 }
 
 function extractJson(raw: string): string | null {

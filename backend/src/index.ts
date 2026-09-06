@@ -33,6 +33,9 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+app.use('/uploads/projects', (_req, res) => {
+  res.status(403).json({ error: "Accès direct interdit. Utilise la route authentifiée /api/projects/:id/download." });
+});
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.use((req, res, next) => {

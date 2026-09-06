@@ -50,6 +50,7 @@ model Message {
   isDownloadable   Boolean    @default(false)
   downloadUrl      String?
   downloadFileName String?
+  projectVersionId String?
   attachments      Attachment[]
   createdAt        DateTime   @default(now())
 
@@ -66,6 +67,7 @@ model ProjectVersion {
   version     Int
   fileCount   Int
   zipUrl      String
+  files       Json?
   createdAt   DateTime @default(now())
 
   @@index([userId, projectName])

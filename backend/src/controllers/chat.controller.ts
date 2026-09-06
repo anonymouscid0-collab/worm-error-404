@@ -113,6 +113,7 @@ export async function sendMessage(req: AuthRequest, res: Response) {
       isDownloadable: aiResult.isDownloadable ?? false,
       downloadUrl: aiResult.downloadUrl ?? null,
       downloadFileName: aiResult.downloadFileName ?? null,
+      projectVersionId: aiResult.projectVersionId ?? null,
     },
   });
 

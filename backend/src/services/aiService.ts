@@ -19,6 +19,7 @@ export interface AiResponse {
   isDownloadable?: boolean;
   downloadFileName?: string;
   downloadUrl?: string;
+  projectVersionId?: string;
 }
 
 export interface AiConfig {
@@ -155,6 +156,7 @@ export async function generateAiResponse(
           isDownloadable: true,
           downloadFileName: projectResult.zipFileName,
           downloadUrl: projectResult.zipUrl,
+          projectVersionId: projectResult.versionId,
         };
       }
 

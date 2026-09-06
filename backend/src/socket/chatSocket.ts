@@ -78,6 +78,7 @@ export function setupChatSocket(io: Server) {
             isDownloadable: aiResult.isDownloadable ?? false,
             downloadUrl: aiResult.downloadUrl ?? null,
             downloadFileName: aiResult.downloadFileName ?? null,
+            projectVersionId: aiResult.projectVersionId ?? null,
           },
         });
 
