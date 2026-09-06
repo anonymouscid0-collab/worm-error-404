@@ -49,6 +49,25 @@ interface ChatMessage {
   isDownloadable?: boolean;
   downloadUrl?: string | null;
   downloadFileName?: string | null;
+  projectVersionId?: string | null;
+}
+
+async function downloadProjectVersion(versionId: string, fileName: string) {
+  try {
+    const response = await api.get(`/api/projects/${versionId}/download`, {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName || "projet.zip";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Téléchargement du projet échoué:", err);
+  }
 }
 
 interface ConversationSummary {
@@ -742,15 +761,19 @@ export default function ChatPage() {
                 }
               />
 
-              {message.isDownloadable && message.downloadUrl && (
-                <a
-                  href={`${API_URL}${message.downloadUrl}`}
-                  download={message.downloadFileName || undefined}
+              {message.isDownloadable && message.projectVersionId && (
+                <button
+                  onClick={() =>
+                    downloadProjectVersion(
+                      message.projectVersionId!,
+                      message.downloadFileName || "projet.zip"
+                    )
+                  }
                   className="mt-3 inline-flex items-center gap-2 rounded-lg border border-line bg-background px-3 py-2 text-xs font-medium text-body hover:bg-card"
                 >
                   <Archive size={14} />
                   Télécharger {message.downloadFileName || "le projet"}
-                </a>
+                </button>
               )}
             </div>
           ))}
